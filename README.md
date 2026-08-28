@@ -6,7 +6,7 @@ El módulo de reportes permite consultar y generar información relacionada con 
 
 Está dirigido principalmente a los administradores, permitiendo visualizar la información de asistencia de manera organizada y aplicar diferentes filtros para facilitar su consulta y análisis.
 
-## Funcionalidades
+## Funcionalidades (por implementar)
 
 - Consulta de registros de asistencia.
 - Filtrado de información por diferentes criterios.
@@ -15,7 +15,7 @@ Está dirigido principalmente a los administradores, permitiendo visualizar la i
 - Exportación de información en formato **CSV**.
 - Exportación de información en formato **PDF**.
 
-## Filtros disponibles
+## Filtros disponibles (por implementar)
 
 Los reportes pueden ser consultados utilizando diferentes filtros, como:
 
@@ -27,7 +27,7 @@ Los reportes pueden ser consultados utilizando diferentes filtros, como:
 
 Los filtros permiten obtener información más específica según las necesidades del administrador.
 
-## Endpoints principales
+## Endpoints principales 
 
 | Método | Endpoint | Descripción |
 |---|---|---|
@@ -39,6 +39,7 @@ Los filtros permiten obtener información más específica según las necesidade
 ## Acceso
 
 Los endpoints del módulo de reportes requieren autenticación mediante **JWT** y están disponibles para usuarios con rol de **administrador**.
+(por importar del modulo de usuarios)
 
 ## Tecnologías
 
