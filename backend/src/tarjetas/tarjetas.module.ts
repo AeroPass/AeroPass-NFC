@@ -7,21 +7,13 @@ import { Tarjeta } from './entities/tarjeta.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([
-      Tarjeta,
-    ]),
+    TypeOrmModule.forFeature([Tarjeta,]),
   ],
 
-  controllers: [
-    TarjetasController,
-  ],
+  controllers: [ TarjetasController,],
 
-  providers: [
-    TarjetasService,
-  ],
+  providers: [TarjetasService,],
 
-  exports: [
-    TarjetasService,
-  ],
+  exports: [TarjetasService,],
 })
 export class TarjetasModule {}
