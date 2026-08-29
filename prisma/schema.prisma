@@ -1,0 +1,266 @@
+// ================================================================
+// Prisma schema - Sistema Web de Control de Acceso y Asistencia NFC
+// ================================================================
+// Este modelo refleja EXACTAMENTE la estructura del SQL
+// `control_acceso_nfc.sql` que tienes en la carpeta sql/.
+//
+// IMPORTANTE: Este schema está configurado para MySQL.
+// Todos los campos en camelCase tienen @map() al nombre snake_case
+// real de tu base de datos MySQL.
+// ================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// --- Tipos de documento -----------------------------------------
+model TiposDocumento {
+  id        Int      @id @default(autoincrement())
+  codigo    String   @unique
+  nombre    String   @unique
+  activo    Boolean  @default(true)
+
+  personas  Persona[]
+
+  @@map("tipos_documento")
+}
+
+// --- Personas (identidad base) ----------------------------------
+model Persona {
+  id               Int      @id @default(autoincrement())
+  tipoDocumentoId  Int      @map("tipo_documento_id")
+  documento        String
+  nombres          String
+  apellidos        String
+  email            String?  @unique
+  telefono         String?
+  fechaNacimiento  DateTime? @map("fecha_nacimiento")
+  estado           String   @default("ACTIVA")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt        @map("updated_at")
+
+  tipoDocumento    TiposDocumento @relation(fields: [tipoDocumentoId], references: [id])
+  usuarios         Usuario[]
+  docente          Docente?
+  estudiante       Estudiante?
+
+  @@unique([tipoDocumentoId, documento])
+  @@index([apellidos, nombres])
+  @@map("personas")
+}
+
+// --- Roles ------------------------------------------------------
+model Rol {
+  id          Int      @id @default(autoincrement())
+  codigo      String   @unique
+  nombre      String   @unique
+  descripcion String?
+  estado      String   @default("ACTIVO")
+
+  usuarios    Usuario[]
+  rolPermisos RolPermiso[]
+
+  @@map("roles")
+}
+
+// --- Permisos ---------------------------------------------------
+model Permiso {
+  id          Int      @id @default(autoincrement())
+  codigo      String   @unique
+  nombre      String   @unique
+  modulo      String
+  descripcion String?
+  estado      String   @default("ACTIVO")
+
+  rolPermisos RolPermiso[]
+
+  @@map("permisos")
+}
+
+// --- Relación N:M Rol <-> Permiso -------------------------------
+model RolPermiso {
+  rolId     Int      @map("rol_id")
+  permisoId Int      @map("permiso_id")
+
+  rol       Rol     @relation(fields: [rolId], references: [id], onDelete: Cascade)
+  permiso   Permiso @relation(fields: [permisoId], references: [id], onDelete: Cascade)
+
+  @@id([rolId, permisoId])
+  @@map("rol_permiso")
+}
+
+// --- Usuarios (cuentas de acceso) -------------------------------
+model Usuario {
+  id              Int      @id @default(autoincrement())
+  personaId       Int      @unique @map("persona_id")
+  rolId           Int      @map("rol_id")
+  username        String   @unique
+  passwordHash    String   @map("password_hash")
+  estado          String   @default("ACTIVO")
+  ultimoAccesoAt  DateTime? @map("ultimo_acceso_at")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt        @map("updated_at")
+
+  persona         Persona  @relation(fields: [personaId], references: [id])
+  rol             Rol      @relation(fields: [rolId], references: [id])
+
+  @@index([rolId])
+  @@index([estado])
+  @@map("usuarios")
+}
+
+// --- Carreras ---------------------------------------------------
+model Carrera {
+  id        Int      @id @default(autoincrement())
+  codigo    String   @unique
+  nombre    String   @unique
+  estado    String   @default("ACTIVA")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt       @map("updated_at")
+
+  grupos    Grupo[]
+
+  @@map("carreras")
+}
+
+// --- Semestres --------------------------------------------------
+model Semestre {
+  id      Int     @id @default(autoincrement())
+  numero  Int     @unique
+  nombre  String  @unique
+  estado  String  @default("ACTIVO")
+
+  grupos  Grupo[]
+
+  @@map("semestres")
+}
+
+// --- Periodos Académicos ----------------------------------------
+model Periodo {
+  id          Int      @id @default(autoincrement())
+  codigo      String   @unique
+  nombre      String
+  fechaInicio DateTime @map("fecha_inicio")
+  fechaFin    DateTime @map("fecha_fin")
+  estado      String   @default("PLANIFICADO")
+
+  grupos      Grupo[]
+
+  @@map("periodos_academicos")
+}
+
+// --- Salones ----------------------------------------------------
+model Salon {
+  id        Int     @id @default(autoincrement())
+  codigo    String  @unique
+  nombre    String
+  edificio  String?
+  piso      String?
+  capacidad Int?
+  estado    String  @default("DISPONIBLE")
+
+  @@map("salones")
+}
+
+// --- Docentes (registro académico) ------------------------------
+model Docente {
+  id            Int      @id @default(autoincrement())
+  personaId     Int      @unique @map("persona_id")
+  codigoDocente String   @unique @map("codigo_docente")
+  estado        String   @default("ACTIVO")
+
+  persona       Persona  @relation(fields: [personaId], references: [id])
+  asignaciones  AsignacionDocente[]
+
+  @@map("docentes")
+}
+
+// --- Estudiantes (registro académico) ---------------------------
+model Estudiante {
+  id              Int      @id @default(autoincrement())
+  personaId       Int      @unique @map("persona_id")
+  codigoEstudiante String  @unique @map("codigo_estudiante")
+  fechaIngreso    DateTime? @map("fecha_ingreso")
+  estado          String   @default("ACTIVO")
+
+  persona         Persona  @relation(fields: [personaId], references: [id])
+  matriculas      MatriculaGrupo[]
+
+  @@map("estudiantes")
+}
+
+// --- Materias ---------------------------------------------------
+model Materia {
+  id             Int      @id @default(autoincrement())
+  codigo         String   @unique
+  nombre         String
+  creditos       Int?
+  horasSemanales Decimal? @map("horas_semanales")
+  estado         String   @default("ACTIVA")
+
+  asignaciones   AsignacionDocente[]
+
+  @@map("materias")
+}
+
+// --- Grupos -----------------------------------------------------
+model Grupo {
+  id          Int      @id @default(autoincrement())
+  carreraId   Int      @map("carrera_id")
+  semestreId  Int      @map("semestre_id")
+  periodoId   Int      @map("periodo_id")
+  codigo      String
+  nombre      String?
+  jornada     String?
+  modalidad   String   @default("PRESENCIAL")
+  estado      String   @default("ACTIVO")
+
+  carrera         Carrera  @relation(fields: [carreraId], references: [id])
+  semestre        Semestre @relation(fields: [semestreId], references: [id])
+  periodo         Periodo  @relation(fields: [periodoId], references: [id])
+  matriculas      MatriculaGrupo[]
+  asignaciones    AsignacionDocente[]
+
+  @@unique([periodoId, codigo])
+  @@map("grupos")
+}
+
+// --- Matrículas de estudiantes en grupos ------------------------
+model MatriculaGrupo {
+  id           Int      @id @default(autoincrement())
+  estudianteId Int      @map("estudiante_id")
+  grupoId      Int      @map("grupo_id")
+  fechaInicio  DateTime @map("fecha_inicio")
+  fechaFin     DateTime? @map("fecha_fin")
+  estado       String   @default("ACTIVA")
+
+  estudiante   Estudiante       @relation(fields: [estudianteId], references: [id])
+  grupo        Grupo            @relation(fields: [grupoId], references: [id])
+
+  @@unique([estudianteId, grupoId, fechaInicio])
+  @@map("matriculas_grupo")
+}
+
+// --- Asignaciones de docentes a grupos/materias -----------------
+model AsignacionDocente {
+  id          Int      @id @default(autoincrement())
+  docenteId   Int      @map("docente_id")
+  materiaId   Int      @map("materia_id")
+  grupoId     Int      @map("grupo_id")
+  estado      String   @default("ACTIVA")
+  fechaInicio DateTime? @map("fecha_inicio")
+  fechaFin    DateTime? @map("fecha_fin")
+  observaciones String? @map("observaciones")
+
+  docente     Docente  @relation(fields: [docenteId], references: [id])
+  materia     Materia  @relation(fields: [materiaId], references: [id])
+  grupo       Grupo    @relation(fields: [grupoId], references: [id])
+
+  @@unique([docenteId, materiaId, grupoId])
+  @@map("asignaciones_docente")
+}

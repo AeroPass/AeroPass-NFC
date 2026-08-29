@@ -1,0 +1,248 @@
+{
+  "info": {
+    "name": "Gestión de Usuarios - NFC",
+    "_postman_id": "c3d4e5f6-a7b8-9012-cdef-345678901234",
+    "description": "Backend de gestión de usuarios sobre el esquema control_acceso_nfc con JWT + RBAC. Variables: {{base_url}} y {{token}}.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:3000", "type": "string" },
+    { "key": "token", "value": "", "type": "string" },
+    { "key": "user_id", "value": "1", "type": "string" },
+    { "key": "rol_id", "value": "1", "type": "string" }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+  },
+  "item": [
+    {
+      "name": "1. Seed - Crear datos iniciales",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": { "raw": "{{base_url}}/api/seed", "host": ["{{base_url}}"], "path": ["api", "seed"] },
+        "description": "Crea tipos_documento, 4 roles, 25 permisos y 1 usuario admin (admin/admin123). Solo si la BD está vacía."
+      }
+    },
+    {
+      "name": "2. Login - admin",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "var json = pm.response.json();",
+              "if (json.token) {",
+              "  pm.collectionVariables.set('token', json.token);",
+              "  console.log('Token guardado en {{token}}');",
+              "}",
+              "pm.test('Login exitoso', function () {",
+              "  pm.response.to.have.status(200);",
+              "  pm.expect(json.user).to.have.property('username');",
+              "  pm.expect(json.user.permisos).to.be.an('array');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"admin123\"\n}"
+        },
+        "url": { "raw": "{{base_url}}/api/auth/login", "host": ["{{base_url}}"], "path": ["api", "auth", "login"] },
+        "description": "Login como admin. Devuelve JWT con todos los permisos. El token se guarda automáticamente en {{token}}."
+      }
+    },
+    {
+      "name": "3. Auth - Me",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": { "raw": "{{base_url}}/api/auth/me", "host": ["{{base_url}}"], "path": ["api", "auth", "me"] },
+        "description": "Devuelve el usuario autenticado con persona, rol y permisos."
+      }
+    },
+    {
+      "name": "4. Users - Listar",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/users",
+          "host": ["{{base_url}}"],
+          "path": ["api", "users"],
+          "query": [
+            { "key": "rol", "value": "ADMIN", "disabled": true },
+            { "key": "estado", "value": "ACTIVO", "disabled": true },
+            { "key": "q", "value": "admin", "disabled": true }
+          ]
+        },
+        "description": "Lista todos los usuarios. Requiere permiso: USUARIOS_LEER. Filtros opcionales: ?rol, ?estado, ?q."
+      }
+    },
+    {
+      "name": "5. Users - Crear",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "var json = pm.response.json();",
+              "if (json.usuario && json.usuario.id) {",
+              "  pm.collectionVariables.set('user_id', json.usuario.id);",
+              "  console.log('user_id guardado: ' + json.usuario.id);",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"tipoDocumentoId\": 1,\n  \"documento\": \"1000000002\",\n  \"nombres\": \"Juan Carlos\",\n  \"apellidos\": \"Pérez\",\n  \"email\": \"juan@nfc.edu\",\n  \"telefono\": \"3001234567\",\n  \"username\": \"docente1\",\n  \"password\": \"doc123\",\n  \"rolId\": 2\n}"
+        },
+        "url": { "raw": "{{base_url}}/api/users", "host": ["{{base_url}}"], "path": ["api", "users"] },
+        "description": "Crea una persona + usuario. Requiere permiso: USUARIOS_CREAR."
+      }
+    },
+    {
+      "name": "6. Users - Obtener por ID",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": { "raw": "{{base_url}}/api/users/{{user_id}}", "host": ["{{base_url}}"], "path": ["api", "users", "{{user_id}}"] },
+        "description": "Obtiene un usuario por ID. Requiere permiso: USUARIOS_LEER."
+      }
+    },
+    {
+      "name": "7. Users - Editar",
+      "request": {
+        "method": "PUT",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"nombres\": \"Juan Carlos Actualizado\",\n  \"password\": \"nuevaPassword123\"\n}"
+        },
+        "url": { "raw": "{{base_url}}/api/users/{{user_id}}", "host": ["{{base_url}}"], "path": ["api", "users", "{{user_id}}"] },
+        "description": "Edita un usuario. Requiere permiso: USUARIOS_EDITAR."
+      }
+    },
+    {
+      "name": "8. Users - Desactivar",
+      "request": {
+        "method": "PATCH",
+        "header": [],
+        "url": { "raw": "{{base_url}}/api/users/{{user_id}}/deactivate", "host": ["{{base_url}}"], "path": ["api", "users", "{{user_id}}", "deactivate"] },
+        "description": "Desactiva un usuario (estado → INACTIVO). Requiere permiso: USUARIOS_ESTADO."
+      }
+    },
+    {
+      "name": "9. Users - Activar",
+      "request": {
+        "method": "PATCH",
+        "header": [],
+        "url": { "raw": "{{base_url}}/api/users/{{user_id}}/activate", "host": ["{{base_url}}"], "path": ["api", "users", "{{user_id}}", "activate"] },
+        "description": "Reactiva un usuario (estado → ACTIVO). Requiere permiso: USUARIOS_ESTADO."
+      }
+    },
+    {
+      "name": "10. Users - Eliminar",
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": { "raw": "{{base_url}}/api/users/{{user_id}}", "host": ["{{base_url}}"], "path": ["api", "users", "{{user_id}}"] },
+        "description": "Elimina un usuario permanentemente. No puede eliminarse a sí mismo. Requiere permiso: USUARIOS_EDITAR."
+      }
+    },
+    {
+      "name": "11. Roles - Listar",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/roles?includePermisos=true",
+          "host": ["{{base_url}}"],
+          "path": ["api", "roles"],
+          "query": [{ "key": "includePermisos", "value": "true" }]
+        },
+        "description": "Lista todos los roles. Usa ?includePermisos=true para incluir los permisos."
+      }
+    },
+    {
+      "name": "12. Roles - Crear",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "var json = pm.response.json();",
+              "if (json.rol && json.rol.id) {",
+              "  pm.collectionVariables.set('rol_id', json.rol.id);",
+              "  console.log('rol_id guardado: ' + json.rol.id);",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"codigo\": \"COORDINADOR\",\n  \"nombre\": \"Coordinador Académico\",\n  \"descripcion\": \"Coordina carreras y docentes\",\n  \"permisosIds\": [1, 2, 3, 4, 5]\n}"
+        },
+        "url": { "raw": "{{base_url}}/api/roles", "host": ["{{base_url}}"], "path": ["api", "roles"] },
+        "description": "Crea un nuevo rol. Requiere permiso: ROLES_GESTIONAR."
+      }
+    },
+    {
+      "name": "13. Roles - Obtener por ID",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": { "raw": "{{base_url}}/api/roles/{{rol_id}}", "host": ["{{base_url}}"], "path": ["api", "roles", "{{rol_id}}"] },
+        "description": "Obtiene un rol por ID con sus permisos."
+      }
+    },
+    {
+      "name": "14. Roles - Editar",
+      "request": {
+        "method": "PUT",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"nombre\": \"Coordinador Actualizado\",\n  \"permisosIds\": [1, 2, 3]\n}"
+        },
+        "url": { "raw": "{{base_url}}/api/roles/{{rol_id}}", "host": ["{{base_url}}"], "path": ["api", "roles", "{{rol_id}}"] },
+        "description": "Edita un rol. Si incluye permisosIds, reemplaza todos los permisos. Requiere permiso: ROLES_GESTIONAR."
+      }
+    },
+    {
+      "name": "15. Roles - Eliminar",
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": { "raw": "{{base_url}}/api/roles/{{rol_id}}", "host": ["{{base_url}}"], "path": ["api", "roles", "{{rol_id}}"] },
+        "description": "Elimina un rol. No se puede eliminar si tiene usuarios asignados. Requiere permiso: ROLES_GESTIONAR."
+      }
+    },
+    {
+      "name": "16. Permisos - Listar todos",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": { "raw": "{{base_url}}/api/permissions", "host": ["{{base_url}}"], "path": ["api", "permissions"] },
+        "description": "Devuelve los permisos del usuario actual + todos los permisos del sistema agrupados por módulo."
+      }
+    }
+  ]
+}
