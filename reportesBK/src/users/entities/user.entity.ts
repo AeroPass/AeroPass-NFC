@@ -1,23 +1,28 @@
-import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
 import { Role } from '../../common/enums/role.enum';
 
-@Entity('users')
+@Entity('usuarios')
 export class User {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ unique: true })
+  @Column({ name: 'correo_electronico', unique: true })
   email: string;
 
-  @Column()
+  @Column({ name: 'contrasena_hash' })
   passwordHash: string;
 
-  @Column({ type: 'enum', enum: Role })
+  @Column({ name: 'rol', type: 'enum', enum: Role })
   role: Role;
 
-  @Column({ default: true })
+  @Column({ name: 'activo', default: true })
   isActive: boolean;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ name: 'creado_en' })
   createdAt: Date;
 }

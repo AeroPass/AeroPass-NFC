@@ -1,13 +1,13 @@
 import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
 
-@Entity('students')
+@Entity('estudiantes')
 export class Student {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column()
+  @Column({ name: 'nombre' })
   name: string;
 
-  @Column({ unique: true })
+  @Column({ name: 'codigo_matricula', unique: true })
   enrollmentCode: string;
 }

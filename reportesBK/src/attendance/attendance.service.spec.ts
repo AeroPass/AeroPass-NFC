@@ -1,52 +1,63 @@
-import { ConflictException, ForbiddenException } from '@nestjs/common';
+import { ConflictException, NotFoundException } from '@nestjs/common';
 import { AttendanceService } from './attendance.service';
-import { AttendanceMethod } from './enums/attendance-method.enum';
-import { AttendanceStatus } from './enums/attendance-status.enum';
-import { SessionStatus } from './enums/session-status.enum';
-import { Role } from '../common/enums/role.enum';
 
 describe('AttendanceService', () => {
-  const sessions = {
+  const asistencias = {
     create: jest.fn(),
     save: jest.fn(),
     findOne: jest.fn(),
     createQueryBuilder: jest.fn(),
   };
-  const records = { create: jest.fn(), save: jest.fn(), findOne: jest.fn() };
-  const assignments = { findOne: jest.fn() };
-  const enrollments = { exists: jest.fn() };
+  const dataSource = { query: jest.fn() };
   let service: AttendanceService;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    service = new AttendanceService(sessions as never, records as never, assignments as never, enrollments as never);
+    service = new AttendanceService(asistencias as never, dataSource as never);
   });
 
-  it('creates a manual attendance record for an enrolled student', async () => {
-    const session = { id: 10, courseSubjectId: 4, teacherId: 7, status: SessionStatus.OPEN };
-    assignments.findOne.mockResolvedValue({ id: 4, teacherId: 7 });
-    sessions.create.mockReturnValue(session);
-    sessions.save.mockResolvedValue(session);
-    sessions.findOne.mockResolvedValue(session);
-    enrollments.exists.mockResolvedValue(true);
-    records.findOne.mockResolvedValue(null);
-    records.create.mockReturnValue({ sessionId: 10, studentId: 3 });
-    records.save.mockResolvedValue({ id: 1 });
-    await service.createSession({ courseSubjectId: 4, sessionDate: '2026-08-27' }, 7, Role.TEACHER);
-    const result = await service.addRecord(10, { studentId: 3, status: AttendanceStatus.PRESENT }, 7, Role.TEACHER);
-    expect(result).toEqual({ id: 1 });
-    expect(records.create).toHaveBeenCalledWith(expect.objectContaining({ method: AttendanceMethod.MANUAL }));
+  it('crea una asistencia manual para un estudiante matriculado', async () => {
+    dataSource.query
+      .mockResolvedValueOnce([{ id: 4, grupo_id: 8 }])
+      .mockResolvedValueOnce([{ id: 20 }]);
+    asistencias.findOne.mockResolvedValue(null);
+    asistencias.create.mockReturnValue({ estudianteId: 1 });
+    asistencias.save.mockResolvedValue({ id: 10, fuente: 'MANUAL' });
+
+    const result = await service.crear({
+      estudianteId: 1,
+      horarioId: 4,
+      fechaClase: '2026-09-02',
+    });
+
+    expect(result).toEqual({ id: 10, fuente: 'MANUAL' });
+    expect(asistencias.create).toHaveBeenCalledWith(
+      expect.objectContaining({ fuente: 'MANUAL', resultado: 'ASISTENCIA' }),
+    );
   });
 
-  it('rejects a teacher accessing another teacher assignment', async () => {
-    assignments.findOne.mockResolvedValue(null);
-    await expect(service.createSession({ courseSubjectId: 4, sessionDate: '2026-08-27' }, 9, Role.TEACHER))
-      .rejects.toBeInstanceOf(ForbiddenException);
+  it('rechaza un horario inexistente o inactivo', async () => {
+    dataSource.query.mockResolvedValueOnce([]);
+    await expect(
+      service.crear({
+        estudianteId: 1,
+        horarioId: 4,
+        fechaClase: '2026-09-02',
+      }),
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 
-  it('rejects duplicate attendance and records in a closed session', async () => {
-    sessions.findOne.mockResolvedValue({ id: 10, courseSubjectId: 4, teacherId: 7, status: SessionStatus.CLOSED });
-    await expect(service.addRecord(10, { studentId: 3, status: AttendanceStatus.PRESENT }, 7, Role.TEACHER))
-      .rejects.toBeInstanceOf(ConflictException);
+  it('rechaza duplicados', async () => {
+    dataSource.query
+      .mockResolvedValueOnce([{ id: 4, grupo_id: 8 }])
+      .mockResolvedValueOnce([{ id: 20 }]);
+    asistencias.findOne.mockResolvedValue({ id: 10 });
+    await expect(
+      service.crear({
+        estudianteId: 1,
+        horarioId: 4,
+        fechaClase: '2026-09-02',
+      }),
+    ).rejects.toBeInstanceOf(ConflictException);
   });
 });

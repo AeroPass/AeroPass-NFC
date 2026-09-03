@@ -1,14 +1,14 @@
 import { Column, Entity, PrimaryGeneratedColumn, Unique } from 'typeorm';
 
-@Entity('enrollments')
+@Entity('matriculas')
 @Unique(['courseSubjectId', 'studentId'])
 export class Enrollment {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column()
+  @Column({ name: 'curso_materia_id' })
   courseSubjectId: number;
 
-  @Column()
+  @Column({ name: 'estudiante_id' })
   studentId: number;
 }

@@ -1,19 +1,21 @@
 import { Type } from 'class-transformer';
-import { IsDateString, IsEnum, IsInt, IsOptional, Min } from 'class-validator';
+import {
+  IsDateString,
+  IsEnum,
+  IsInt,
+  IsOptional,
+  Max,
+  Min,
+} from 'class-validator';
 
-const resultadosAsistencia = [
+const resultados = [
   'ASISTENCIA',
   'TARDANZA',
   'JUSTIFICADA',
   'ANULADA',
 ] as const;
-const formatosReporte = ['csv', 'pdf'] as const;
 
-export class AttendanceReportQueryDto {
-  @IsOptional()
-  @IsEnum(formatosReporte)
-  formato?: (typeof formatosReporte)[number];
-
+export class ConsultarAsistenciaDto {
   @IsOptional()
   @IsDateString()
   desde?: string;
@@ -26,7 +28,13 @@ export class AttendanceReportQueryDto {
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  asignacionDocenteId?: number;
+  estudianteId?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  horarioId?: number;
 
   @IsOptional()
   @Type(() => Number)
@@ -47,14 +55,8 @@ export class AttendanceReportQueryDto {
   grupoId?: number;
 
   @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  estudianteId?: number;
-
-  @IsOptional()
-  @IsEnum(resultadosAsistencia)
-  resultado?: (typeof resultadosAsistencia)[number];
+  @IsEnum(resultados)
+  resultado?: (typeof resultados)[number];
 
   @IsOptional()
   @Type(() => Number)
@@ -66,5 +68,6 @@ export class AttendanceReportQueryDto {
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  limite = 100;
+  @Max(100)
+  limite = 50;
 }

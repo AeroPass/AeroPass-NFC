@@ -1,17 +1,11 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { AuthModule } from './auth/auth.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AttendanceModule } from './attendance/attendance.module';
-import { AttendanceRecord } from './attendance/entities/attendance-record.entity';
-import { AttendanceSession } from './attendance/entities/attendance-session.entity';
-import { CourseSubject } from './academic/entities/course-subject.entity';
-import { Enrollment } from './academic/entities/enrollment.entity';
-import { Student } from './academic/entities/student.entity';
-import { User } from './users/entities/user.entity';
 import { ReportsModule } from './reports/reports.module';
+import { Asistencia } from './attendance/entities/asistencia.entity';
 
 @Module({
   imports: [
@@ -25,11 +19,10 @@ import { ReportsModule } from './reports/reports.module';
         username: config.get<string>('DB_USERNAME', 'root'),
         password: config.get<string>('DB_PASSWORD', ''),
         database: config.get<string>('DB_DATABASE', 'aeropass'),
-        entities: [User, Student, CourseSubject, Enrollment, AttendanceSession, AttendanceRecord],
+        entities: [Asistencia],
         synchronize: config.get('DB_SYNCHRONIZE', 'false') === 'true',
       }),
     }),
-    AuthModule,
     AttendanceModule,
     ReportsModule,
   ],

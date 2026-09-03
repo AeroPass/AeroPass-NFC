@@ -14,10 +14,14 @@ export class AuthService {
   ) {}
 
   async login(dto: LoginDto) {
-    const user = await this.users.findOne({ where: { email: dto.email, isActive: true } });
+    const user = await this.users.findOne({
+      where: { email: dto.email, isActive: true },
+    });
     if (!user || !(await bcrypt.compare(dto.password, user.passwordHash))) {
       throw new UnauthorizedException('Invalid credentials');
     }
-    return { accessToken: await this.jwt.signAsync({ sub: user.id, role: user.role }) };
+    return {
+      accessToken: await this.jwt.signAsync({ sub: user.id, role: user.role }),
+    };
   }
 }

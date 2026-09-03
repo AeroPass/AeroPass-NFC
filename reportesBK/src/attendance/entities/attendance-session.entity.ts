@@ -8,27 +8,32 @@ import {
 import { AttendanceRecord } from './attendance-record.entity';
 import { SessionStatus } from '../enums/session-status.enum';
 
-@Entity('attendance_sessions')
+@Entity('sesiones_asistencia')
 export class AttendanceSession {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column()
+  @Column({ name: 'curso_materia_id' })
   courseSubjectId: number;
 
-  @Column()
+  @Column({ name: 'docente_id' })
   teacherId: number;
 
-  @Column({ type: 'date' })
+  @Column({ name: 'fecha_sesion', type: 'date' })
   sessionDate: string;
 
-  @Column({ type: 'enum', enum: SessionStatus, default: SessionStatus.OPEN })
+  @Column({
+    name: 'estado',
+    type: 'enum',
+    enum: SessionStatus,
+    default: SessionStatus.OPEN,
+  })
   status: SessionStatus;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ name: 'cerrada_en', type: 'datetime', nullable: true })
   closedAt: Date | null;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ name: 'creada_en' })
   createdAt: Date;
 
   @OneToMany(() => AttendanceRecord, (record) => record.session)

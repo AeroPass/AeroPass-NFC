@@ -11,31 +11,38 @@ import { AttendanceMethod } from '../enums/attendance-method.enum';
 import { AttendanceStatus } from '../enums/attendance-status.enum';
 import { AttendanceSession } from './attendance-session.entity';
 
-@Entity('attendance_records')
+@Entity('registros_asistencia')
 @Unique(['sessionId', 'studentId'])
 export class AttendanceRecord {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column()
+  @Column({ name: 'sesion_id' })
   sessionId: number;
 
-  @Column()
+  @Column({ name: 'estudiante_id' })
   studentId: number;
 
-  @Column({ type: 'enum', enum: AttendanceStatus })
+  @Column({ name: 'estado', type: 'enum', enum: AttendanceStatus })
   status: AttendanceStatus;
 
-  @Column({ type: 'enum', enum: AttendanceMethod, default: AttendanceMethod.MANUAL })
+  @Column({
+    name: 'metodo',
+    type: 'enum',
+    enum: AttendanceMethod,
+    default: AttendanceMethod.MANUAL,
+  })
   method: AttendanceMethod;
 
-  @Column({ nullable: true, length: 500 })
+  @Column({ name: 'observacion', type: 'varchar', length: 500, nullable: true })
   note: string | null;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ name: 'registrada_en' })
   recordedAt: Date;
 
-  @ManyToOne(() => AttendanceSession, (session) => session.records, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'sessionId' })
+  @ManyToOne(() => AttendanceSession, (session) => session.records, {
+    onDelete: 'CASCADE',
+  })
+  @JoinColumn({ name: 'sesion_id' })
   session: AttendanceSession;
 }

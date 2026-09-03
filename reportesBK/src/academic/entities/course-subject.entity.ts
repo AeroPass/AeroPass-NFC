@@ -1,16 +1,16 @@
 import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
 
-@Entity('course_subjects')
+@Entity('cursos_materias')
 export class CourseSubject {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column()
+  @Column({ name: 'nombre_curso' })
   courseName: string;
 
-  @Column()
+  @Column({ name: 'nombre_materia' })
   subjectName: string;
 
-  @Column()
+  @Column({ name: 'docente_id' })
   teacherId: number;
 }

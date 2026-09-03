@@ -1,110 +1,177 @@
 import {
   ConflictException,
-  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { Role } from '../common/enums/role.enum';
-import { CourseSubject } from '../academic/entities/course-subject.entity';
-import { Enrollment } from '../academic/entities/enrollment.entity';
-import { AttendanceMethod } from './enums/attendance-method.enum';
-import { SessionStatus } from './enums/session-status.enum';
-import { AttendanceRecord } from './entities/attendance-record.entity';
-import { AttendanceSession } from './entities/attendance-session.entity';
-import { CreateAttendanceRecordDto } from './dto/create-attendance-record.dto';
-import { CreateAttendanceSessionDto } from './dto/create-attendance-session.dto';
-import { AttendanceQueryDto } from './dto/attendance-query.dto';
-import { UpdateAttendanceRecordDto } from './dto/update-attendance-record.dto';
+import { DataSource, Repository } from 'typeorm';
+import { Asistencia } from './entities/asistencia.entity';
+import { ConsultarAsistenciaDto } from './dto/consultar-asistencia.dto';
+import { CrearAsistenciaDto } from './dto/crear-asistencia.dto';
+
+interface HorarioActivo {
+  id: number;
+  grupo_id: number;
+}
+
+interface MatriculaActiva {
+  id: number;
+}
 
 @Injectable()
 export class AttendanceService {
   constructor(
-    @InjectRepository(AttendanceSession) private readonly sessions: Repository<AttendanceSession>,
-    @InjectRepository(AttendanceRecord) private readonly records: Repository<AttendanceRecord>,
-    @InjectRepository(CourseSubject) private readonly assignments: Repository<CourseSubject>,
-    @InjectRepository(Enrollment) private readonly enrollments: Repository<Enrollment>,
+    @InjectRepository(Asistencia)
+    private readonly asistencias: Repository<Asistencia>,
+    private readonly dataSource: DataSource,
   ) {}
 
-  async createSession(dto: CreateAttendanceSessionDto, userId: number, role: Role) {
-    const assignment = await this.findAssignment(dto.courseSubjectId, userId, role);
-    const session = this.sessions.create({
-      courseSubjectId: assignment.id,
-      teacherId: assignment.teacherId,
-      sessionDate: dto.sessionDate,
-      status: SessionStatus.OPEN,
-      closedAt: null,
+  async crear(dto: CrearAsistenciaDto) {
+    const horario = await this.dataSource.query<HorarioActivo[]>(
+      `SELECT h.id, ad.grupo_id
+       FROM horarios h
+       INNER JOIN asignaciones_docente ad ON ad.id = h.asignacion_docente_id
+       WHERE h.id = ? AND h.estado = 'ACTIVO' AND ad.estado = 'ACTIVA'`,
+      [dto.horarioId],
+    );
+    if (!horario.length)
+      throw new NotFoundException('El horario no existe o no esta activo');
+
+    const matricula = await this.dataSource.query<MatriculaActiva[]>(
+      `SELECT id FROM matriculas_grupo
+       WHERE estudiante_id = ? AND grupo_id = ? AND estado = 'ACTIVA'
+         AND fecha_inicio <= ? AND (fecha_fin IS NULL OR fecha_fin >= ?)`,
+      [dto.estudianteId, horario[0].grupo_id, dto.fechaClase, dto.fechaClase],
+    );
+    if (!matricula.length)
+      throw new ConflictException(
+        'El estudiante no esta matriculado en el grupo',
+      );
+
+    const existente = await this.asistencias.findOne({
+      where: {
+        estudianteId: dto.estudianteId,
+        horarioId: dto.horarioId,
+        fechaClase: dto.fechaClase,
+      },
     });
-    return this.sessions.save(session);
-  }
+    if (existente)
+      throw new ConflictException(
+        'Ya existe asistencia para ese estudiante, horario y fecha',
+      );
 
-  async listSessions(query: AttendanceQueryDto, userId: number, role: Role) {
-    const builder = this.sessions.createQueryBuilder('session');
-    if (role === Role.TEACHER) builder.andWhere('session.teacherId = :userId', { userId });
-    if (query.courseSubjectId) builder.andWhere('session.courseSubjectId = :courseSubjectId', { courseSubjectId: query.courseSubjectId });
-    if (query.from) builder.andWhere('session.sessionDate >= :from', { from: query.from });
-    if (query.to) builder.andWhere('session.sessionDate <= :to', { to: query.to });
-    const [items, total] = await builder
-      .orderBy('session.sessionDate', 'DESC')
-      .skip((query.page - 1) * query.limit)
-      .take(query.limit)
-      .getManyAndCount();
-    return { items, total, page: query.page, limit: query.limit };
-  }
-
-  async getSession(id: number, userId: number, role: Role) {
-    const session = await this.sessions.findOne({ where: { id } });
-    if (!session) throw new NotFoundException('Attendance session not found');
-    if (role === Role.TEACHER && session.teacherId !== userId) throw new ForbiddenException();
-    return session;
-  }
-
-  async closeSession(id: number, userId: number, role: Role) {
-    const session = await this.getSession(id, userId, role);
-    if (session.status === SessionStatus.CLOSED) return session;
-    session.status = SessionStatus.CLOSED;
-    session.closedAt = new Date();
-    return this.sessions.save(session);
-  }
-
-  async listRecords(sessionId: number, userId: number, role: Role) {
-    await this.getSession(sessionId, userId, role);
-    return this.records.find({
-      where: { sessionId },
-      order: { studentId: 'ASC' },
+    const asistencia = this.asistencias.create({
+      estudianteId: dto.estudianteId,
+      horarioId: dto.horarioId,
+      fechaClase: dto.fechaClase,
+      horaRegistro: dto.horaRegistro ? new Date(dto.horaRegistro) : new Date(),
+      resultado: dto.resultado ?? 'ASISTENCIA',
+      fuente: dto.fuente ?? 'MANUAL',
+      tarjetaId: null,
+      dispositivoId: null,
+      observaciones: dto.observaciones ?? null,
     });
+    return this.asistencias.save(asistencia);
   }
 
-  async addRecord(sessionId: number, dto: CreateAttendanceRecordDto, userId: number, role: Role) {
-    const session = await this.getSession(sessionId, userId, role);
-    if (session.status === SessionStatus.CLOSED) throw new ConflictException('Attendance session is closed');
-    const enrolled = await this.enrollments.exists({ where: { courseSubjectId: session.courseSubjectId, studentId: dto.studentId } });
-    if (!enrolled) throw new ConflictException('Student is not enrolled in this course');
-    const existing = await this.records.findOne({ where: { sessionId, studentId: dto.studentId } });
-    if (existing) throw new ConflictException('Student already has attendance for this session');
-    return this.records.save(this.records.create({
-      sessionId,
-      studentId: dto.studentId,
-      status: dto.status,
-      method: dto.method ?? AttendanceMethod.MANUAL,
-      note: dto.note ?? null,
-    }));
+  async consultar(query: ConsultarAsistenciaDto) {
+    const builder = this.baseQuery();
+    this.aplicarFiltros(builder, query);
+    const total = await builder
+      .clone()
+      .select('COUNT(DISTINCT asistencia.id)', 'total')
+      .getRawOne<{ total: string }>();
+    const registros = await builder
+      .orderBy('asistencia.fecha_clase', 'DESC')
+      .addOrderBy('asistencia.hora_registro', 'DESC')
+      .offset((query.pagina - 1) * query.limite)
+      .limit(query.limite)
+      .getRawMany();
+    return {
+      registros,
+      total: Number(total?.total ?? 0),
+      pagina: query.pagina,
+      limite: query.limite,
+    };
   }
 
-  async updateRecord(id: number, dto: UpdateAttendanceRecordDto, userId: number, role: Role) {
-    const record = await this.records.findOne({ where: { id } });
-    if (!record) throw new NotFoundException('Attendance record not found');
-    const session = await this.getSession(record.sessionId, userId, role);
-    if (session.status === SessionStatus.CLOSED) throw new ConflictException('Attendance session is closed');
-    Object.assign(record, dto);
-    return this.records.save(record);
+  private baseQuery() {
+    return this.asistencias
+      .createQueryBuilder('asistencia')
+      .innerJoin('horarios', 'horario', 'horario.id = asistencia.horario_id')
+      .innerJoin(
+        'asignaciones_docente',
+        'asignacion',
+        'asignacion.id = horario.asignacion_docente_id',
+      )
+      .innerJoin(
+        'estudiantes',
+        'estudiante',
+        'estudiante.id = asistencia.estudiante_id',
+      )
+      .innerJoin(
+        'personas',
+        'persona_estudiante',
+        'persona_estudiante.id = estudiante.persona_id',
+      )
+      .innerJoin('docentes', 'docente', 'docente.id = asignacion.docente_id')
+      .innerJoin(
+        'personas',
+        'persona_docente',
+        'persona_docente.id = docente.persona_id',
+      )
+      .innerJoin('materias', 'materia', 'materia.id = asignacion.materia_id')
+      .innerJoin('grupos', 'grupo', 'grupo.id = asignacion.grupo_id')
+      .select([
+        'asistencia.id AS asistencia_id',
+        'asistencia.estudiante_id AS estudiante_id',
+        'asistencia.horario_id AS horario_id',
+        'asistencia.fecha_clase AS fecha_clase',
+        'asistencia.hora_registro AS hora_registro',
+        'asistencia.resultado AS resultado',
+        'asistencia.fuente AS fuente',
+        'asistencia.observaciones AS observaciones',
+        "CONCAT(persona_estudiante.nombres, ' ', persona_estudiante.apellidos) AS estudiante",
+        'estudiante.codigo_estudiante AS codigo_estudiante',
+        "CONCAT(persona_docente.nombres, ' ', persona_docente.apellidos) AS docente",
+        'materia.nombre AS materia',
+        'grupo.codigo AS grupo_codigo',
+      ]);
   }
 
-  private async findAssignment(id: number, userId: number, role: Role) {
-    const where = role === Role.ADMIN ? { id } : { id, teacherId: userId };
-    const assignment = await this.assignments.findOne({ where });
-    if (!assignment) throw new ForbiddenException('Course subject is not assigned to this teacher');
-    return assignment;
+  private aplicarFiltros(
+    builder: ReturnType<AttendanceService['baseQuery']>,
+    query: ConsultarAsistenciaDto,
+  ) {
+    if (query.desde)
+      builder.andWhere('asistencia.fecha_clase >= :desde', {
+        desde: query.desde,
+      });
+    if (query.hasta)
+      builder.andWhere('asistencia.fecha_clase <= :hasta', {
+        hasta: query.hasta,
+      });
+    if (query.estudianteId)
+      builder.andWhere('asistencia.estudiante_id = :estudianteId', {
+        estudianteId: query.estudianteId,
+      });
+    if (query.horarioId)
+      builder.andWhere('asistencia.horario_id = :horarioId', {
+        horarioId: query.horarioId,
+      });
+    if (query.docenteId)
+      builder.andWhere('docente.id = :docenteId', {
+        docenteId: query.docenteId,
+      });
+    if (query.materiaId)
+      builder.andWhere('materia.id = :materiaId', {
+        materiaId: query.materiaId,
+      });
+    if (query.grupoId)
+      builder.andWhere('grupo.id = :grupoId', { grupoId: query.grupoId });
+    if (query.resultado)
+      builder.andWhere('asistencia.resultado = :resultado', {
+        resultado: query.resultado,
+      });
   }
 }

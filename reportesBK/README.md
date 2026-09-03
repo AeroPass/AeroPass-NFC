@@ -29,30 +29,38 @@ AeroPass backend for manual attendance, teacher attendance queries and administr
 
 Copy `.env.example` to `.env` and configure MySQL plus `JWT_SECRET`. Keep `DB_SYNCHRONIZE=false` outside local development and use migrations when the schema is promoted.
 
-## Attendance API
+## API de asistencia
 
-All attendance endpoints require a JWT bearer token with role `ADMIN` or `TEACHER`.
+Los endpoints son públicos temporalmente para facilitar las pruebas desde Postman.
 
-- `POST /attendance/sessions`
-- `GET /attendance/sessions`
-- `GET /attendance/sessions/:id`
-- `GET /attendance/sessions/:id/records`
-- `PATCH /attendance/sessions/:id/close`
-- `POST /attendance/sessions/:id/records`
-- `PATCH /attendance/records/:id`
+- `POST /asistencia`
+- `GET /asistencia`
 
-Teachers are restricted to their assigned course subjects. Students must be enrolled before attendance can be recorded.
+Ejemplo de `POST /asistencia`:
 
-## Administrator reports
+```json
+{
+  "estudianteId": 1,
+  "horarioId": 1,
+  "fechaClase": "2026-09-02",
+  "resultado": "ASISTENCIA",
+  "fuente": "MANUAL",
+  "observaciones": "Registro manual"
+}
+```
 
-Reports require role `ADMIN`:
+El estudiante debe estar matriculado en el grupo del horario y no puede existir otro registro para el mismo estudiante, horario y fecha.
 
-- `GET /reports/attendance`
-- `GET /reports/attendance/summary`
-- `GET /reports/attendance/export?format=csv`
-- `GET /reports/attendance/export?format=pdf`
+## Reportes de asistencia
 
-The report endpoints accept `from`, `to`, `courseSubjectId`, `teacherId`, `studentId` and `status` filters.
+Los reportes se consultan sin token mientras se completa la integración de autenticación:
+
+- `GET /reportes/asistencia`
+- `GET /reportes/asistencia/summary`
+- `GET /reportes/asistencia/export?formato=csv`
+- `GET /reportes/asistencia/export?formato=pdf`
+
+Filtros: `desde`, `hasta`, `estudianteId`, `horarioId`, `docenteId`, `materiaId`, `grupoId`, `resultado`, `pagina` y `limite`.
 
 ## Project setup
 
