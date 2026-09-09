@@ -1,5 +1,12 @@
 import { Type } from 'class-transformer';
-import { IsDateString, IsEnum, IsInt, IsOptional, Min } from 'class-validator';
+import {
+  IsDateString,
+  IsEnum,
+  IsInt,
+  IsOptional,
+  Max,
+  Min,
+} from 'class-validator';
 
 const resultadosAsistencia = [
   'ASISTENCIA',
@@ -66,5 +73,6 @@ export class AttendanceReportQueryDto {
   @Type(() => Number)
   @IsInt()
   @Min(1)
+  @Max(100)
   limite = 100;
 }

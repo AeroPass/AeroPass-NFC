@@ -21,11 +21,11 @@
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
+    "@nestjs/config": "^4.0.4",
     "@nestjs/core": "^11.0.1",
-    "@nestjs/platform-express": "^11.0.1",
-    "@nestjs/config": "^4.0.2",
-    "@nestjs/jwt": "^11.0.0",
     "@nestjs/mapped-types": "^2.1.0",
+    "@nestjs/platform-express": "^11.0.1",
+    "@nestjs/jwt": "^11.0.0",
     "@nestjs/passport": "^11.0.5",
     "@nestjs/typeorm": "^11.0.0",
     "bcrypt": "^6.0.0",
@@ -81,6 +81,9 @@
     },
     "collectCoverageFrom": [
       "**/*.(t|j)s"
+    ],
+    "testPathIgnorePatterns": [
+      "<rootDir>/auditoria/"
     ],
     "coverageDirectory": "../coverage",
     "testEnvironment": "node"

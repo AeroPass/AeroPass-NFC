@@ -1,3 +1,4 @@
+import { Type } from 'class-transformer';
 import {
   IsDateString,
   IsEnum,
@@ -17,10 +18,12 @@ const resultados = [
 const fuentes = ['NFC', 'MANUAL', 'IMPORTACION'] as const;
 
 export class CrearAsistenciaDto {
+  @Type(() => Number)
   @IsInt()
   @Min(1)
   estudianteId: number;
 
+  @Type(() => Number)
   @IsInt()
   @Min(1)
   horarioId: number;

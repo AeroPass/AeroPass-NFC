@@ -28,9 +28,21 @@ export class ReportsController {
       return this.writePdf(result.registros, response);
     const csv = [
       'asistencia_id,estudiante_id,estudiante,docente,materia,grupo,fecha_clase,hora_registro,resultado,fuente',
-      ...result.registros.map(
-        (record) =>
-          `${record.asistencia_id},${record.estudiante_id},"${record.estudiante}","${record.docente}","${record.materia}","${record.grupo_codigo}",${record.fecha_clase},${record.hora_registro},${record.resultado},${record.fuente}`,
+      ...result.registros.map((record) =>
+        [
+          record.asistencia_id,
+          record.estudiante_id,
+          record.estudiante,
+          record.docente,
+          record.materia,
+          record.grupo_codigo,
+          record.fecha_clase,
+          record.hora_registro,
+          record.resultado,
+          record.fuente,
+        ]
+          .map((value) => this.csvCell(value))
+          .join(','),
       ),
     ].join('\n');
     response.setHeader('Content-Type', 'text/csv; charset=utf-8');
@@ -39,6 +51,10 @@ export class ReportsController {
       'attachment; filename="reporte-asistencia.csv"',
     );
     return response.send(csv);
+  }
+
+  private csvCell(value: string | number | null | undefined) {
+    return `"${String(value ?? '').replace(/"/g, '""')}"`;
   }
 
   private writePdf(records: ReporteAsistencia[], response: Response) {
