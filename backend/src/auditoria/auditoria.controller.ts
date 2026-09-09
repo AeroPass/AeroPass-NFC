@@ -32,3 +32,4 @@ export class AuditoriaController {
   //   return this.auditoriaService.remove(+id);
   // }
 }
+

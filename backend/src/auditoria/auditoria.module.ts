@@ -7,3 +7,4 @@ import { AuditoriaController } from './auditoria.controller';
   providers: [AuditoriaService],
 })
 export class AuditoriaModule {}
+

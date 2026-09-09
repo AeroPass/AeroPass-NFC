@@ -1,6 +1,7 @@
 @echo off
 echo Instalando Agente NFC como servicio de Windows...
 
+
 REM Descargar NSSM si no existe
 where nssm >nul 2>nul
 if %errorlevel% neq 0 (
