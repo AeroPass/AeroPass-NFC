@@ -156,3 +156,5 @@ class NFCReader:
             str(lector) == str(self.lector)
             for lector in lectores
         )
+
+

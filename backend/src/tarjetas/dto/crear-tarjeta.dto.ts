@@ -26,3 +26,5 @@ export class CrearTarjetaDto {
   @MaxLength(255)
   observaciones?: string;
 }
+
+

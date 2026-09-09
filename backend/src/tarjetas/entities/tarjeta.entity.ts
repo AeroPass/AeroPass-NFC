@@ -60,3 +60,4 @@ export class Tarjeta {
   })
   updatedAt!: Date;
 }
+

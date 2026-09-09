@@ -15,3 +15,4 @@ export class ActualizarTarjetaDto {
   @MaxLength(255)
   observaciones?: string;
 }
+
