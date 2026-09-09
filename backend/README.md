@@ -23,7 +23,44 @@
 
 ## Description
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+AeroPass backend for manual attendance, teacher attendance queries and administrator reports.
+
+## Configuration
+
+Copy `.env.example` to `.env` and configure MySQL plus `JWT_SECRET`. Keep `DB_SYNCHRONIZE=false` outside local development and use migrations when the schema is promoted.
+
+## API de asistencia
+
+Los endpoints son públicos temporalmente para facilitar las pruebas desde Postman.
+
+- `POST /asistencia`
+- `GET /asistencia`
+
+Ejemplo de `POST /asistencia`:
+
+```json
+{
+  "estudianteId": 1,
+  "horarioId": 1,
+  "fechaClase": "2026-09-02",
+  "resultado": "ASISTENCIA",
+  "fuente": "MANUAL",
+  "observaciones": "Registro manual"
+}
+```
+
+El estudiante debe estar matriculado en el grupo del horario y no puede existir otro registro para el mismo estudiante, horario y fecha.
+
+## Reportes de asistencia
+
+Los reportes se consultan sin token mientras se completa la integración de autenticación:
+
+- `GET /reportes/asistencia`
+- `GET /reportes/asistencia/summary`
+- `GET /reportes/asistencia/export?formato=csv`
+- `GET /reportes/asistencia/export?formato=pdf`
+
+Filtros: `desde`, `hasta`, `estudianteId`, `horarioId`, `docenteId`, `materiaId`, `grupoId`, `resultado`, `pagina` y `limite`.
 
 ## Project setup
 
