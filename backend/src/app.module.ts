@@ -3,6 +3,11 @@ import { GestionAcademicaModule } from './gestion-academica/gestion-academica.mo
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
+import { UsuariosModule } from './usuarios/usuarios.module';
+import { EstudiantesModule } from './estudiantes/estudiantes.module';
+import { RolesModule } from './roles/roles.module';
+import { PermisosModule } from './permisos/permisos.module';
+
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -47,6 +52,10 @@ import { CourseSubject } from './academic/entities/course-subject.entity';
     TarjetasModule,
     GestionAcademicaModule,
     AuthModule,
+    UsuariosModule,
+    EstudiantesModule,
+    RolesModule,
+    PermisosModule,
   ],
 
   controllers: [AppController],
