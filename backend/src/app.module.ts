@@ -29,4 +29,7 @@ import { Asistencia } from './attendance/entities/asistencia.entity';
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+
+export class AppModule { }
+
+
