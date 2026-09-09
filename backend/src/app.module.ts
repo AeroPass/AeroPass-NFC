@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { GestionAcademicaModule } from './gestion-academica/gestion-academica.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
@@ -44,6 +45,7 @@ import { CourseSubject } from './academic/entities/course-subject.entity';
     AttendanceModule,
     ReportsModule,
     TarjetasModule,
+    GestionAcademicaModule,
     AuthModule,
   ],
 
@@ -52,5 +54,3 @@ import { CourseSubject } from './academic/entities/course-subject.entity';
 })
 
 export class AppModule { }
-
-
