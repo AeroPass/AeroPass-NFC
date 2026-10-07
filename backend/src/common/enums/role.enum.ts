@@ -1,4 +1,6 @@
-export enum Role {
+export enum RoleCode {
   ADMIN = 'ADMIN',
-  TEACHER = 'TEACHER',
+  ADMINISTRATIVO = 'ADMINISTRATIVO',
+  DOCENTE = 'DOCENTE',
+  ESTUDIANTE = 'ESTUDIANTE',
 }

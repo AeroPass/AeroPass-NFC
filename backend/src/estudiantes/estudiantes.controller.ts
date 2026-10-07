@@ -1,31 +1,23 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
-import { EstudiantesService } from './estudiantes.service.js';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
-import { CurrentUser } from '../auth/current-user.decorator.js';
+import { Controller, Get, Query } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { RequirePermissions } from '../auth/decorators/permissions.decorator';
+import { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interface';
+import { RoleCode } from '../common/enums/role.enum';
+import { Roles } from '../common/decorators/roles.decorator';
+import { EstudianteQueryDto } from './dto/estudiante-query.dto';
+import { EstudiantesService } from './estudiantes.service';
 
 @ApiTags('Estudiantes')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@Roles(RoleCode.ADMIN, RoleCode.ADMINISTRATIVO, RoleCode.DOCENTE)
+@RequirePermissions('ASISTENCIAS_LEER')
 @Controller('estudiantes')
 export class EstudiantesController {
-  constructor(private readonly estudiantesService: EstudiantesService) {}
+  constructor(private readonly estudiantes: EstudiantesService) {}
 
   @Get()
-  @ApiOperation({
-    summary: 'Listar estudiantes',
-    description: 'Admin ve TODOS los estudiantes (paginado). Docente ve ÚNICAMENTE los estudiantes de sus grupos.',
-  })
-  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
-  @ApiQuery({ name: 'limit', required: false, type: Number, example: 200 })
-  findAll(
-    @CurrentUser() user: any,
-    @Query('page') page?: string,
-    @Query('limit') limit?: string,
-  ) {
-    // Paginación para la vista ADMIN (evita cargar toda la tabla con relaciones).
-    const pageNum = Math.max(1, Number(page) || 1);
-    const limitNum = Math.min(Math.max(1, Number(limit) || 200), 500);
-    return this.estudiantesService.findAll(user, pageNum, limitNum);
+  findAll(@CurrentUser() user: AuthenticatedUser, @Query() query: EstudianteQueryDto) {
+    return this.estudiantes.findAll(user, query);
   }
 }

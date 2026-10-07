@@ -1,9 +1,6 @@
 import { Request } from 'express';
-import { Role } from '../../common/enums/role.enum';
+import { AuthenticatedUser } from './authenticated-user.interface';
 
-export interface AuthenticatedUser {
-  id: number;
-  role: Role;
+export interface AuthenticatedRequest extends Request {
+  user: AuthenticatedUser;
 }
-
-export type AuthenticatedRequest = Request & { user: AuthenticatedUser };

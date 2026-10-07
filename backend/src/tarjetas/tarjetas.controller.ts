@@ -1,77 +1,57 @@
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  Param,
-  Patch,
-  Post,
-} from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { RequirePermissions } from '../auth/decorators/permissions.decorator';
+import { RoleCode } from '../common/enums/role.enum';
+import { Roles } from '../common/decorators/roles.decorator';
 import { ActualizarTarjetaDto } from './dto/actualizar-tarjeta.dto';
 import { CambiarEstadoTarjetaDto } from './dto/cambiar-estado-tarjeta.dto';
 import { CrearTarjetaDto } from './dto/crear-tarjeta.dto';
 import { TarjetasService } from './tarjetas.service';
 
+@ApiTags('Tarjetas NFC')
+@ApiBearerAuth()
+@Roles(RoleCode.ADMIN, RoleCode.ADMINISTRATIVO)
 @Controller('tarjetas')
 export class TarjetasController {
-  constructor(
-    private readonly tarjetasService: TarjetasService,
-  ) {}
-
-  @Post()
-  crear(@Body() dto: CrearTarjetaDto) {
-    return this.tarjetasService.crear(dto);
-  }
+  constructor(private readonly tarjetas: TarjetasService) {}
 
   @Get()
-  obtenerTodas() {
-    return this.tarjetasService.obtenerTodas();
-  }
+  @RequirePermissions('TARJETAS_LEER')
+  obtenerTodas() { return this.tarjetas.obtenerTodas(); }
 
   @Get('uid/:uid')
-  obtenerPorUid(@Param('uid') uid: string) {
-    return this.tarjetasService.obtenerPorUid(uid);
-  }
+  @RequirePermissions('TARJETAS_LEER')
+  obtenerPorUid(@Param('uid') uid: string) { return this.tarjetas.obtenerPorUid(uid); }
 
   @Get(':id')
-  obtenerPorId(@Param('id') id: string) {
-    return this.tarjetasService.obtenerPorId(id);
-  }
+  @RequirePermissions('TARJETAS_LEER')
+  obtenerPorId(@Param('id') id: string) { return this.tarjetas.obtenerPorId(id); }
+
+  @Post()
+  @RequirePermissions('TARJETAS_GESTIONAR')
+  crear(@Body() dto: CrearTarjetaDto) { return this.tarjetas.crear(dto); }
 
   @Patch(':id')
-  actualizar(
-    @Param('id') id: string,
-    @Body() dto: ActualizarTarjetaDto,
-  ) {
-    return this.tarjetasService.actualizar(id, dto);
-  }
+  @RequirePermissions('TARJETAS_GESTIONAR')
+  actualizar(@Param('id') id: string, @Body() dto: ActualizarTarjetaDto) { return this.tarjetas.actualizar(id, dto); }
 
   @Patch(':id/estado')
-  cambiarEstado(
-    @Param('id') id: string,
-    @Body() dto: CambiarEstadoTarjetaDto,
-  ) {
-    return this.tarjetasService.cambiarEstado(id, dto);
-  }
+  @RequirePermissions('TARJETAS_GESTIONAR')
+  cambiarEstado(@Param('id') id: string, @Body() dto: CambiarEstadoTarjetaDto) { return this.tarjetas.cambiarEstado(id, dto); }
 
   @Patch(':id/desactivar')
-  desactivar(@Param('id') id: string) {
-    return this.tarjetasService.desactivar(id);
-  }
+  @RequirePermissions('TARJETAS_GESTIONAR')
+  desactivar(@Param('id') id: string) { return this.tarjetas.desactivar(id); }
 
   @Patch(':id/reactivar')
-  reactivar(@Param('id') id: string) {
-    return this.tarjetasService.reactivar(id);
-  }
+  @RequirePermissions('TARJETAS_GESTIONAR')
+  reactivar(@Param('id') id: string) { return this.tarjetas.reactivar(id); }
 
   @Patch(':id/bloquear')
-  bloquear(@Param('id') id: string) {
-    return this.tarjetasService.bloquear(id);
-  }
+  @RequirePermissions('TARJETAS_GESTIONAR')
+  bloquear(@Param('id') id: string) { return this.tarjetas.bloquear(id); }
 
   @Delete(':id')
-  eliminar(@Param('id') id: string) {
-    return this.tarjetasService.eliminar(id);
-  }
+  @RequirePermissions('TARJETAS_GESTIONAR')
+  eliminar(@Param('id') id: string) { return this.tarjetas.eliminar(id); }
 }
-

@@ -1,52 +1,47 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import {
-  IsString,
-  IsNumber,
-  IsEnum,
-  IsEmail,
-  IsOptional,
-  MinLength,
-  MaxLength,
-} from 'class-validator';
+import { IsEmail, IsEnum, IsInt, IsOptional, IsString, MaxLength, Min, MinLength } from 'class-validator';
 
 export class UpdateUsuarioDto {
-  @ApiPropertyOptional({ description: 'Nombres' })
+  @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   @MinLength(2)
   @MaxLength(100)
   nombres?: string;
 
-  @ApiPropertyOptional({ description: 'Apellidos' })
+  @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   @MinLength(2)
   @MaxLength(100)
   apellidos?: string;
 
-  @ApiPropertyOptional({ description: 'Email' })
+  @ApiPropertyOptional()
   @IsOptional()
   @IsEmail()
   email?: string;
 
-  @ApiPropertyOptional({ description: 'Teléfono' })
+  @ApiPropertyOptional()
   @IsOptional()
   @IsString()
+  @MaxLength(30)
   telefono?: string;
 
-  @ApiPropertyOptional({ description: 'Nueva contraseña (mínimo 6 caracteres)' })
+  @ApiPropertyOptional({ description: 'Nueva contraseña. Se almacena como Argon2id.' })
   @IsOptional()
   @IsString()
-  @MinLength(6)
+  @MinLength(8)
+  @MaxLength(128)
   password?: string;
 
-  @ApiPropertyOptional({ description: 'ID del nuevo rol' })
+  @ApiPropertyOptional({ description: 'ID de ADMIN, ADMINISTRATIVO o DOCENTE.' })
   @IsOptional()
-  @IsNumber()
+  @IsInt()
+  @Min(1)
   rolId?: number;
 
   @ApiPropertyOptional({ enum: ['ACTIVO', 'INACTIVO', 'BLOQUEADO'] })
   @IsOptional()
   @IsEnum(['ACTIVO', 'INACTIVO', 'BLOQUEADO'])
-  estado?: string;
+  estado?: 'ACTIVO' | 'INACTIVO' | 'BLOQUEADO';
 }

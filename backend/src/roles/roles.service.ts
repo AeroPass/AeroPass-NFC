@@ -1,160 +1,129 @@
-import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
-import { Rol } from '../entities/rol.entity.js';
-import { Permiso } from '../entities/permiso.entity.js';
-import { RolPermiso } from '../entities/rol-permiso.entity.js';
-import { CreateRolDto } from './dto/create-rol.dto.js';
-import { UpdateRolDto } from './dto/update-rol.dto.js';
+import { RoleCode } from '../common/enums/role.enum';
+import { Permiso } from '../permisos/entities/permiso.entity';
+import { CreateRolDto } from './dto/create-rol.dto';
+import { UpdateRolDto } from './dto/update-rol.dto';
+import { Rol } from './entities/rol.entity';
+import { RolPermiso } from './entities/rol-permiso.entity';
+import { ROLE_METADATA, ROLE_PERMISSION_POLICY } from '../auth/policies/security-policy';
 
 @Injectable()
 export class RolesService {
   constructor(
-    @InjectRepository(Rol) private rolRepo: Repository<Rol>,
-    @InjectRepository(Permiso) private permisoRepo: Repository<Permiso>,
-    @InjectRepository(RolPermiso) private rolPermisoRepo: Repository<RolPermiso>,
+    @InjectRepository(Rol) private readonly rolRepo: Repository<Rol>,
+    @InjectRepository(RolPermiso) private readonly rolPermisoRepo: Repository<RolPermiso>,
+    @InjectRepository(Permiso) private readonly permisoRepo: Repository<Permiso>,
   ) {}
 
-  async findAll(includePermisos = false) {
+  async findAll() {
     const roles = await this.rolRepo.find({
-      relations: includePermisos ? { rolPermisos: { permiso: true } } : {},
+      where: { codigo: In(Object.values(RoleCode)) },
+      relations: { rolPermisos: { permiso: true } },
       order: { id: 'ASC' },
     });
 
-    return roles.map((r) => ({
-      id: r.id,
-      codigo: r.codigo,
-      nombre: r.nombre,
-      descripcion: r.descripcion,
-      estado: r.estado,
-      permisos: includePermisos ? (r.rolPermisos || []).map((rp) => rp.permiso) : undefined,
-      totalPermisos: includePermisos ? (r.rolPermisos || []).length : undefined,
-    }));
+    return roles.map((role) => this.toResponse(role));
   }
 
   async findOne(id: number) {
-    const rol = await this.rolRepo.findOne({
+    const role = await this.rolRepo.findOne({
       where: { id },
       relations: { rolPermisos: { permiso: true } },
     });
-    if (!rol) throw new NotFoundException('Rol no encontrado.');
-    return {
-      id: rol.id,
-      codigo: rol.codigo,
-      nombre: rol.nombre,
-      descripcion: rol.descripcion,
-      estado: rol.estado,
-      permisos: (rol.rolPermisos || []).map((rp) => rp.permiso),
-      totalPermisos: (rol.rolPermisos || []).length,
-    };
+    if (!role || !Object.values(RoleCode).includes(role.codigo as RoleCode)) {
+      throw new NotFoundException('Rol no encontrado.');
+    }
+    return this.toResponse(role);
   }
 
   async create(dto: CreateRolDto) {
-    const existingCodigo = await this.rolRepo.findOne({ where: { codigo: dto.codigo } });
-    if (existingCodigo) throw new ConflictException('Ya existe un rol con ese código.');
+    const existing = await this.rolRepo.findOne({ where: { codigo: dto.codigo } });
+    if (existing) throw new ConflictException('El rol ya existe. Los roles del sistema están definidos por política.');
 
-    const existingNombre = await this.rolRepo.findOne({ where: { nombre: dto.nombre } });
-    if (existingNombre) throw new ConflictException('Ya existe un rol con ese nombre.');
-
-    if (dto.permisosIds && dto.permisosIds.length > 0) {
-      const permisosExistentes = await this.permisoRepo.find({
-        where: { id: In(dto.permisosIds) },
-      });
-      if (permisosExistentes.length !== dto.permisosIds.length) {
-        throw new BadRequestException('Uno o más permisos especificados no existen.');
-      }
-    }
-
-    try {
-      return await this.rolRepo.manager.transaction(async (manager) => {
-        const nuevo = manager.create(Rol, {
-          codigo: dto.codigo,
-          nombre: dto.nombre,
-          descripcion: dto.descripcion || null,
-          estado: dto.estado || 'ACTIVO',
-        });
-        const saved = await manager.save(Rol, nuevo);
-
-        if (dto.permisosIds && dto.permisosIds.length > 0) {
-          await manager.insert(
-            RolPermiso,
-            dto.permisosIds.map((permisoId) => ({ rolId: saved.id, permisoId })),
-          );
-        }
-
-        return { rol: { id: saved.id, codigo: saved.codigo, nombre: saved.nombre } };
-      });
-    } catch (error: any) {
-      // Carrera concurrente: el UNIQUE de la BD responde ER_DUP_ENTRY -> 409
-      if (error?.code === 'ER_DUP_ENTRY') {
-        throw new ConflictException('Ya existe un rol con ese código o nombre.');
-      }
-      throw error;
-    }
+    const role = this.rolRepo.create({
+      codigo: dto.codigo,
+      nombre: dto.nombre,
+      descripcion: dto.descripcion ?? null,
+      estado: dto.estado ?? 'ACTIVO',
+    });
+    const saved = await this.rolRepo.save(role);
+    await this.applyPolicy(saved);
+    return this.findOne(saved.id);
   }
 
   async update(id: number, dto: UpdateRolDto) {
-    const rol = await this.rolRepo.findOne({ where: { id } });
-    if (!rol) throw new NotFoundException('Rol no encontrado.');
+    const role = await this.rolRepo.findOne({ where: { id } });
+    if (!role) throw new NotFoundException('Rol no encontrado.');
 
-    if (dto.nombre && dto.nombre !== rol.nombre) {
-      const dup = await this.rolRepo.findOne({ where: { nombre: dto.nombre } });
-      if (dup && dup.id !== id) throw new ConflictException('Ya existe un rol con ese nombre.');
+    if (dto.nombre && dto.nombre !== role.nombre) {
+      const duplicate = await this.rolRepo.findOne({ where: { nombre: dto.nombre } });
+      if (duplicate && duplicate.id !== id) throw new ConflictException('Ya existe un rol con ese nombre.');
     }
 
-    if (dto.permisosIds && dto.permisosIds.length > 0) {
-      const permisosExistentes = await this.permisoRepo.find({
-        where: { id: In(dto.permisosIds) },
-      });
-      if (permisosExistentes.length !== dto.permisosIds.length) {
-        throw new BadRequestException('Uno o más permisos especificados no existen.');
-      }
+    const canonical = ROLE_METADATA[role.codigo as RoleCode];
+    if (!canonical) throw new ConflictException('El rol no pertenece a la política de seguridad vigente.');
+    if (dto.nombre !== undefined && dto.nombre !== canonical.nombre) {
+      throw new ConflictException('El nombre de los roles definidos por política no puede modificarse.');
+    }
+    if (dto.estado !== undefined && dto.estado !== 'ACTIVO') {
+      throw new ConflictException('Los cuatro roles definidos por política deben permanecer activos.');
     }
 
-    try {
-      return await this.rolRepo.manager.transaction(async (manager) => {
-        const data: any = {};
-        if (dto.nombre) data.nombre = dto.nombre;
-        if (dto.descripcion !== undefined) data.descripcion = dto.descripcion || null;
-        if (dto.estado) data.estado = dto.estado;
-        if (Object.keys(data).length > 0) {
-          await manager.update(Rol, id, data);
-        }
+    role.nombre = canonical.nombre;
+    role.descripcion = dto.descripcion === undefined ? canonical.descripcion : dto.descripcion || null;
+    role.estado = 'ACTIVO';
+    await this.rolRepo.save(role);
 
-        if (dto.permisosIds !== undefined) {
-          await manager.delete(RolPermiso, { rolId: id });
-          if (dto.permisosIds.length > 0) {
-            await manager.insert(
-              RolPermiso,
-              dto.permisosIds.map((permisoId) => ({ rolId: id, permisoId })),
-            );
-          }
-        }
-
-        return this.findOne(id);
-      });
-    } catch (error: any) {
-      if (error?.code === 'ER_DUP_ENTRY') {
-        throw new ConflictException('Ya existe un rol con ese código o nombre.');
-      }
-      throw error;
-    }
+    // La asignación de permisos no es arbitraria: se mantiene la matriz definida.
+    await this.applyPolicy(role);
+    return this.findOne(id);
   }
 
   async remove(id: number) {
-    const rol = await this.rolRepo.findOne({
-      where: { id },
-      relations: { usuarios: true },
-    });
-    if (!rol) throw new NotFoundException('Rol no encontrado.');
-
-    if ((rol.usuarios || []).length > 0) {
-      throw new BadRequestException(
-        `No se puede eliminar: hay ${(rol.usuarios || []).length} usuario(s) con este rol.`,
-      );
+    const role = await this.rolRepo.findOne({ where: { id }, relations: { usuarios: true } });
+    if (!role) throw new NotFoundException('Rol no encontrado.');
+    if ((role.usuarios || []).length) {
+      throw new ConflictException(`No se puede eliminar el rol porque tiene ${(role.usuarios || []).length} usuario(s).`);
     }
+    throw new ConflictException('Los roles de seguridad del sistema son fijos y no se eliminan.');
+  }
 
-    await this.rolRepo.delete(id);
-    return { ok: true, message: 'Rol eliminado.' };
+  private async applyPolicy(role: Rol) {
+    const policy = ROLE_PERMISSION_POLICY[role.codigo as RoleCode] ?? [];
+    const permissions = await this.permisoRepo.find({ where: { codigo: In(policy) } });
+    await this.rolPermisoRepo.manager.transaction(async (manager) => {
+      await manager.delete(RolPermiso, { rolId: role.id });
+      if (permissions.length) {
+        await manager.insert(
+          RolPermiso,
+          permissions.map((permission) => ({ rolId: role.id, permisoId: permission.id })),
+        );
+      }
+    });
+  }
+
+  private toResponse(role: Rol) {
+    const permissions = (role.rolPermisos || [])
+      .map((relation) => relation.permiso)
+      .filter(Boolean)
+      .map((permission) => ({
+        id: permission.id,
+        codigo: permission.codigo,
+        nombre: permission.nombre,
+        modulo: permission.modulo,
+        descripcion: permission.descripcion,
+      }));
+
+    return {
+      id: role.id,
+      codigo: role.codigo,
+      nombre: role.nombre,
+      descripcion: role.descripcion,
+      estado: role.estado,
+      permisos: permissions,
+      totalPermisos: permissions.length,
+    };
   }
 }

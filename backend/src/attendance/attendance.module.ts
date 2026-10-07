@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { Asistencia } from './entities/asistencia.entity';
 import { AttendanceController } from './attendance.controller';
 import { AttendanceService } from './attendance.service';
-import { Asistencia } from './entities/asistencia.entity';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Asistencia])],
@@ -10,4 +10,4 @@ import { Asistencia } from './entities/asistencia.entity';
   providers: [AttendanceService],
   exports: [AttendanceService],
 })
-export class AttendanceModule {}
+export class AttendanceModule { }
