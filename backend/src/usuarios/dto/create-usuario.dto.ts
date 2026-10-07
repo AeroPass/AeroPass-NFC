@@ -1,64 +1,60 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import {
-  IsString,
-  IsNumber,
-  IsEnum,
-  IsEmail,
-  IsOptional,
-  MinLength,
-  MaxLength,
-} from 'class-validator';
+import { IsEmail, IsEnum, IsInt, IsOptional, IsString, MaxLength, Min, MinLength } from 'class-validator';
 
 export class CreateUsuarioDto {
-  @ApiProperty({ example: 1, description: 'ID del tipo de documento' })
-  @IsNumber()
+  @ApiProperty({ example: 1 })
+  @IsInt()
+  @Min(1)
   tipoDocumentoId: number;
 
-  @ApiProperty({ example: '1000000002', description: 'Número de documento' })
+  @ApiProperty({ example: '1000000002' })
   @IsString()
   @MinLength(1)
   @MaxLength(30)
   documento: string;
 
-  @ApiProperty({ example: 'Juan Carlos', description: 'Nombres' })
+  @ApiProperty({ example: 'Juan Carlos' })
   @IsString()
   @MinLength(2)
   @MaxLength(100)
   nombres: string;
 
-  @ApiProperty({ example: 'Pérez', description: 'Apellidos' })
+  @ApiProperty({ example: 'Pérez' })
   @IsString()
   @MinLength(2)
   @MaxLength(100)
   apellidos: string;
 
-  @ApiPropertyOptional({ example: 'juan@nfc.edu', description: 'Email' })
+  @ApiPropertyOptional({ example: 'juan@institucion.edu.co' })
   @IsOptional()
   @IsEmail()
   email?: string;
 
-  @ApiPropertyOptional({ example: '3001234567', description: 'Teléfono' })
+  @ApiPropertyOptional({ example: '3001234567' })
   @IsOptional()
   @IsString()
+  @MaxLength(30)
   telefono?: string;
 
-  @ApiProperty({ example: 'docente1', description: 'Nombre de usuario (único)' })
+  @ApiProperty({ example: 'docente1' })
   @IsString()
   @MinLength(3)
   @MaxLength(80)
   username: string;
 
-  @ApiProperty({ example: 'doc123', description: 'Contraseña (mínimo 6 caracteres)' })
+  @ApiProperty({ example: 'Docente123!' })
   @IsString()
-  @MinLength(6)
+  @MinLength(8)
+  @MaxLength(128)
   password: string;
 
-  @ApiProperty({ example: 2, description: 'ID del rol a asignar' })
-  @IsNumber()
+  @ApiProperty({ example: 2, description: 'ID de ADMIN, ADMINISTRATIVO o DOCENTE. ESTUDIANTE no está permitido.' })
+  @IsInt()
+  @Min(1)
   rolId: number;
 
   @ApiPropertyOptional({ enum: ['ACTIVO', 'INACTIVO', 'BLOQUEADO'], default: 'ACTIVO' })
   @IsOptional()
   @IsEnum(['ACTIVO', 'INACTIVO', 'BLOQUEADO'])
-  estado?: string;
+  estado?: 'ACTIVO' | 'INACTIVO' | 'BLOQUEADO';
 }

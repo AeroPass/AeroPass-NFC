@@ -1,21 +1,5 @@
 import { Type } from 'class-transformer';
-import {
-  IsDateString,
-  IsEnum,
-  IsInt,
-  IsOptional,
-  IsString,
-  MaxLength,
-  Min,
-} from 'class-validator';
-
-const resultados = [
-  'ASISTENCIA',
-  'TARDANZA',
-  'JUSTIFICADA',
-  'ANULADA',
-] as const;
-const fuentes = ['NFC', 'MANUAL', 'IMPORTACION'] as const;
+import { IsDateString, IsEnum, IsInt, IsOptional, IsString, MaxLength, Min } from 'class-validator';
 
 export class CrearAsistenciaDto {
   @Type(() => Number)
@@ -36,12 +20,12 @@ export class CrearAsistenciaDto {
   horaRegistro?: string;
 
   @IsOptional()
-  @IsEnum(resultados)
-  resultado?: (typeof resultados)[number];
+  @IsEnum(['ASISTENCIA', 'TARDANZA', 'JUSTIFICADA', 'ANULADA'])
+  resultado?: 'ASISTENCIA' | 'TARDANZA' | 'JUSTIFICADA' | 'ANULADA';
 
   @IsOptional()
-  @IsEnum(fuentes)
-  fuente?: (typeof fuentes)[number];
+  @IsEnum(['NFC', 'MANUAL', 'IMPORTACION'])
+  fuente?: 'NFC' | 'MANUAL' | 'IMPORTACION';
 
   @IsOptional()
   @IsString()

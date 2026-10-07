@@ -1,9 +1,4 @@
-import {
-  IsDateString,
-  IsOptional,
-  IsString,
-  MaxLength,
-} from 'class-validator';
+import { IsDateString, IsOptional, IsString, MaxLength } from 'class-validator';
 
 export class ActualizarTarjetaDto {
   @IsOptional()
@@ -15,4 +10,3 @@ export class ActualizarTarjetaDto {
   @MaxLength(255)
   observaciones?: string;
 }
-

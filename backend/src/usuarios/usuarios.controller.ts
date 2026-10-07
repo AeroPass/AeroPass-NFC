@@ -1,89 +1,62 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Put,
-  Delete,
-  Patch,
-  Body,
-  Param,
-  Query,
-  UseGuards,
-} from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse } from '@nestjs/swagger';
-import { UsuariosService } from './usuarios.service.js';
-import { CreateUsuarioDto } from './dto/create-usuario.dto.js';
-import { UpdateUsuarioDto } from './dto/update-usuario.dto.js';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
-import { RequirePermissions } from '../auth/permissions.decorator.js';
-import { CurrentUser } from '../auth/current-user.decorator.js';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query } from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { RoleCode } from '../common/enums/role.enum';
+import { Roles } from '../common/decorators/roles.decorator';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { RequirePermissions } from '../auth/decorators/permissions.decorator';
+import { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interface';
+import { CreateUsuarioDto } from './dto/create-usuario.dto';
+import { UpdateUsuarioDto } from './dto/update-usuario.dto';
+import { UsuariosQueryDto } from './dto/usuarios-query.dto';
+import { UsuariosService } from './usuarios.service';
 
 @ApiTags('Usuarios')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@Roles(RoleCode.ADMIN, RoleCode.ADMINISTRATIVO)
 @Controller('usuarios')
 export class UsuariosController {
-  constructor(private readonly usuariosService: UsuariosService) {}
+  constructor(private readonly usuarios: UsuariosService) {}
 
   @Get()
   @RequirePermissions('USUARIOS_LEER')
   @ApiOperation({ summary: 'Listar usuarios' })
-  @ApiQuery({ name: 'rol', required: false })
-  @ApiQuery({ name: 'estado', required: false, enum: ['ACTIVO', 'INACTIVO', 'BLOQUEADO'] })
-  @ApiQuery({ name: 'q', required: false })
-  findAll(
-    @Query('rol') rol?: string,
-    @Query('estado') estado?: string,
-    @Query('q') q?: string,
-  ) {
-    return this.usuariosService.findAll(rol, estado, q);
+  findAll(@Query() query: UsuariosQueryDto) {
+    return this.usuarios.findAll(query);
   }
 
   @Get(':id')
   @RequirePermissions('USUARIOS_LEER')
-  @ApiOperation({ summary: 'Obtener usuario por ID' })
   findOne(@Param('id') id: string) {
-    return this.usuariosService.findOne(Number(id));
+    return this.usuarios.findOne(Number(id));
   }
 
   @Post()
   @RequirePermissions('USUARIOS_CREAR')
-  @ApiOperation({ summary: 'Crear usuario' })
-  @ApiResponse({ status: 201, description: 'Usuario creado' })
-  @ApiResponse({ status: 409, description: 'Conflicto' })
   create(@Body() dto: CreateUsuarioDto) {
-    return this.usuariosService.create(dto);
+    return this.usuarios.create(dto);
   }
 
   @Put(':id')
   @RequirePermissions('USUARIOS_EDITAR')
-  @ApiOperation({ summary: 'Editar usuario' })
-  update(
-    @Param('id') id: string,
-    @Body() dto: UpdateUsuarioDto,
-    @CurrentUser() user: any,
-  ) {
-    return this.usuariosService.update(Number(id), dto, user.id);
+  update(@Param('id') id: string, @Body() dto: UpdateUsuarioDto, @CurrentUser() user: AuthenticatedUser) {
+    return this.usuarios.update(Number(id), dto, user.id);
   }
 
   @Delete(':id')
   @RequirePermissions('USUARIOS_EDITAR')
-  @ApiOperation({ summary: 'Eliminar usuario' })
-  remove(@Param('id') id: string, @CurrentUser() user: any) {
-    return this.usuariosService.remove(Number(id), user.id);
+  remove(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.usuarios.remove(Number(id), user.id);
   }
 
   @Patch(':id/activate')
   @RequirePermissions('USUARIOS_ESTADO')
-  @ApiOperation({ summary: 'Activar usuario' })
   activate(@Param('id') id: string) {
-    return this.usuariosService.activate(Number(id));
+    return this.usuarios.activate(Number(id));
   }
 
   @Patch(':id/deactivate')
   @RequirePermissions('USUARIOS_ESTADO')
-  @ApiOperation({ summary: 'Desactivar usuario' })
-  deactivate(@Param('id') id: string, @CurrentUser() user: any) {
-    return this.usuariosService.deactivate(Number(id), user.id);
+  deactivate(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.usuarios.deactivate(Number(id), user.id);
   }
 }

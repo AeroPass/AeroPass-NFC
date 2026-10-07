@@ -1,26 +1,17 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { EstudiantesService } from './estudiantes.service.js';
-import { EstudiantesController } from './estudiantes.controller.js';
-import { Estudiante } from '../entities/estudiante.entity.js';
-import { Docente } from '../entities/docente.entity.js';
-import { AsignacionDocente } from '../entities/asignacion-docente.entity.js';
-import { MatriculaGrupo } from '../entities/matricula-grupo.entity.js';
-import { Grupo } from '../entities/grupo.entity.js';
-import { Persona } from '../entities/persona.entity.js';
+import { AsignacionDocente } from '../gestion-academica/entities/asignacion-docente.entity';
+import { Docente } from '../gestion-academica/entities/docente.entity';
+import { Grupo } from '../gestion-academica/entities/grupo.entity';
+import { MatriculaGrupo } from '../gestion-academica/entities/matricula-grupo.entity';
+import { Estudiante } from './entities/estudiante.entity';
+import { EstudiantesController } from './estudiantes.controller';
+import { EstudiantesService } from './estudiantes.service';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([
-      Estudiante,
-      Docente,
-      AsignacionDocente,
-      MatriculaGrupo,
-      Grupo,
-      Persona,
-    ]),
-  ],
+  imports: [TypeOrmModule.forFeature([Estudiante, Docente, AsignacionDocente, MatriculaGrupo, Grupo])],
   controllers: [EstudiantesController],
   providers: [EstudiantesService],
+  exports: [EstudiantesService],
 })
-export class EstudiantesModule {}
+export class EstudiantesModule { }

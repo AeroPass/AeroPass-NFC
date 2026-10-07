@@ -1,136 +1,64 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# AeroPass-NFC Backend — versión asegurada
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+Backend NestJS alineado con la base de datos `control_acceso_nfc` entregada para el proyecto.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Incluye
 
-## Description
+- Entidades TypeORM de los módulos que ya existen en `src`.
+- DTOs de entrada y consulta para cada módulo operativo.
+- Autenticación JWT con Passport.
+- `JwtAuthGuard` global y validación de sesión contra la BD.
+- Middleware de validación de encabezado `Authorization: Bearer ...`.
+- Decorador personalizado `@Roles(...)` y `RolesGuard`.
+- Decorador `@RequirePermissions(...)` y `PermissionsGuard`.
+- Sincronización de los cuatro roles de la matriz entregada:
+  - `ADMIN` → Super Admin
+  - `ADMINISTRATIVO` → Administrador
+  - `DOCENTE` → Profesor
+  - `ESTUDIANTE` → Estudiante
+- Regla especial: el estudiante existe para matrícula/asistencia/auditoría, pero no puede tener cuenta ni autenticarse.
+- Compatibilidad de migración para la cuenta existente cuyo hash de contraseña está en SHA-256: al iniciar sesión correctamente se actualiza a Argon2id.
+- Documentación OpenAPI en `/docs`.
+- Colección de Postman en `postman/AeroPass-NFC.postman_collection.json`.
 
-AeroPass backend for manual attendance, teacher attendance queries and administrator reports.
+## Inicio
 
-## Configuration
+1. Ejecuta el SQL suministrado en MySQL.
+2. Copia `.env.example` a `.env` y ajusta la conexión.
+3. Ejecuta `npm install`.
+4. Ejecuta `npm run build`.
+5. Ejecuta `npm run start:dev`.
+6. Abre `http://localhost:3000/docs`.
 
-Copy `.env.example` to `.env` and configure MySQL plus `JWT_SECRET`. Keep `DB_SYNCHRONIZE=false` outside local development and use migrations when the schema is promoted.
+## Login
 
-## API de asistencia
-
-Los endpoints son públicos temporalmente para facilitar las pruebas desde Postman.
-
-- `POST /asistencia`
-- `GET /asistencia`
-
-Ejemplo de `POST /asistencia`:
+`POST /auth/login`
 
 ```json
 {
-  "estudianteId": 1,
-  "horarioId": 1,
-  "fechaClase": "2026-09-02",
-  "resultado": "ASISTENCIA",
-  "fuente": "MANUAL",
-  "observaciones": "Registro manual"
+  "identifier": "admin",
+  "password": "admin123"
 }
 ```
 
-El estudiante debe estar matriculado en el grupo del horario y no puede existir otro registro para el mismo estudiante, horario y fecha.
+La cuenta que ya venía en la BD se detecta como hash SHA-256 legado y, si las credenciales son correctas, se actualiza automáticamente a Argon2id.
 
-## Reportes de asistencia
+## Seguridad de rutas
 
-Los reportes se consultan sin token mientras se completa la integración de autenticación:
+La aplicación registra tres guards globales en este orden:
 
-- `GET /reportes/asistencia`
-- `GET /reportes/asistencia/summary`
-- `GET /reportes/asistencia/export?formato=csv`
-- `GET /reportes/asistencia/export?formato=pdf`
+1. `JwtAuthGuard` — autentica el token.
+2. `RolesGuard` — valida `@Roles(...)`.
+3. `PermissionsGuard` — valida `@RequirePermissions(...)`.
 
-Filtros: `desde`, `hasta`, `estudianteId`, `horarioId`, `docenteId`, `materiaId`, `grupoId`, `resultado`, `pagina` y `limite`.
+Esto mantiene separada la autenticación de la autorización y hace que `request.user` exista antes de comprobar roles/permisos.
 
-## Project setup
+El middleware `AuthHeaderMiddleware` verifica que las rutas protegidas reciban el encabezado Bearer; la verificación criptográfica del JWT queda a Passport/`JwtAuthGuard`.
 
-```bash
-$ npm install
-```
+## Estudiante
 
-## Compile and run the project
+No se permite crear ni modificar una cuenta de usuario para el rol `ESTUDIANTE`. Además, la estrategia JWT rechaza cualquier token asociado a ese rol, incluso si alguien intentara insertar manualmente una cuenta en la base de datos.
 
-```bash
-# development
-$ npm run start
+## `uid_leido`
 
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
-```
-
-## Run tests
-
-```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
-```
-
-## Deployment
-
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
-```
-
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
-
-## Resources
-
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+La tabla `lecturas_nfc` contiene el campo `uid_leido`, pero se deja deliberadamente fuera de las entidades/DTOs de esta entrega, conforme a la indicación del proyecto.

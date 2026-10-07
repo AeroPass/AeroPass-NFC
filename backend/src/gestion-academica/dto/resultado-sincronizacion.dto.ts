@@ -1,5 +1,5 @@
 export class ResultadoSincronizacionDto {
-  iniciadoEn!: string;
-  finalizadoEn!: string;
-  registrosProcesados!: Record<string, number>;
+  iniciadoEn: string;
+  finalizadoEn: string;
+  registrosProcesados: Record<string, number>;
 }

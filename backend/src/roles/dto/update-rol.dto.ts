@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsArray, IsNumber, IsOptional, MaxLength, IsEnum } from 'class-validator';
+import { IsEnum, IsOptional, IsString, MaxLength } from 'class-validator';
 
 export class UpdateRolDto {
   @ApiPropertyOptional()
@@ -17,11 +17,5 @@ export class UpdateRolDto {
   @ApiPropertyOptional({ enum: ['ACTIVO', 'INACTIVO'] })
   @IsOptional()
   @IsEnum(['ACTIVO', 'INACTIVO'])
-  estado?: string;
-
-  @ApiPropertyOptional({ type: [Number] })
-  @IsOptional()
-  @IsArray()
-  @IsNumber({}, { each: true })
-  permisosIds?: number[];
+  estado?: 'ACTIVO' | 'INACTIVO';
 }

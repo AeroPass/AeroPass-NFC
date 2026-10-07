@@ -1,151 +1,130 @@
-import { Injectable, ForbiddenException } from '@nestjs/common';
+import { ForbiddenException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In } from 'typeorm';
-import { Estudiante } from '../entities/estudiante.entity.js';
-import { Docente } from '../entities/docente.entity.js';
-import { AsignacionDocente } from '../entities/asignacion-docente.entity.js';
-import { MatriculaGrupo } from '../entities/matricula-grupo.entity.js';
+import { In, Repository } from 'typeorm';
+import { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interface';
+import { RoleCode } from '../common/enums/role.enum';
+import { AsignacionDocente } from '../gestion-academica/entities/asignacion-docente.entity';
+import { Docente } from '../gestion-academica/entities/docente.entity';
+import { Grupo } from '../gestion-academica/entities/grupo.entity';
+import { MatriculaGrupo } from '../gestion-academica/entities/matricula-grupo.entity';
+import { Estudiante } from './entities/estudiante.entity';
+import { EstudianteQueryDto } from './dto/estudiante-query.dto';
 
 @Injectable()
 export class EstudiantesService {
   constructor(
-    @InjectRepository(Estudiante) private estudianteRepo: Repository<Estudiante>,
-    @InjectRepository(Docente) private docenteRepo: Repository<Docente>,
-    @InjectRepository(AsignacionDocente) private asignacionRepo: Repository<AsignacionDocente>,
-    @InjectRepository(MatriculaGrupo) private matriculaRepo: Repository<MatriculaGrupo>,
+    @InjectRepository(Estudiante) private readonly estudianteRepo: Repository<Estudiante>,
+    @InjectRepository(Docente) private readonly docenteRepo: Repository<Docente>,
+    @InjectRepository(AsignacionDocente) private readonly asignacionRepo: Repository<AsignacionDocente>,
+    @InjectRepository(MatriculaGrupo) private readonly matriculaRepo: Repository<MatriculaGrupo>,
+    @InjectRepository(Grupo) private readonly grupoRepo: Repository<Grupo>,
   ) {}
 
-  /**
-   * - ADMIN: ve TODOS los estudiantes del sistema (paginado con ?page y ?limit)
-   * - DOCENTE: ve ÚNICAMENTE los estudiantes de SUS grupos
-   */
-  async findAll(user: any, page = 1, limit = 200) {
-    if (user.rol.codigo === 'ADMIN') {
-      return this.findAllForAdmin(page, limit);
+  async findAll(user: AuthenticatedUser, query: EstudianteQueryDto) {
+    if ([RoleCode.ADMIN, RoleCode.ADMINISTRATIVO].includes(user.rol.codigo)) {
+      return this.findAllForAdmin(query);
     }
-    if (user.rol.codigo === 'DOCENTE') {
-      return this.findAllForDocente(user);
+
+    if (user.rol.codigo === RoleCode.DOCENTE) {
+      return this.findAllForDocente(user, query);
     }
-    throw new ForbiddenException('Su rol no tiene permiso para ver listas de estudiantes.');
+
+    throw new ForbiddenException('Su rol no tiene permiso para consultar estudiantes.');
   }
 
-  private async findAllForAdmin(page: number, limit: number) {
-    // findAndCount + skip/take: TypeORM pagina por claves primarias y luego carga
-    // las relaciones en consultas separadas (paginación correcta con to-many).
-    const [estudiantes, total] = await this.estudianteRepo.findAndCount({
-      relations: { persona: true, matriculas: { grupo: true } },
-      order: { persona: { apellidos: 'ASC' } as any },
-      skip: (page - 1) * limit,
-      take: limit,
-    });
+  private async findAllForAdmin(queryDto: EstudianteQueryDto) {
+    const query = this.estudianteRepo
+      .createQueryBuilder('e')
+      .leftJoinAndSelect('e.persona', 'persona')
+      .leftJoinAndSelect('e.matriculas', 'matricula', 'matricula.estado = :estadoMatricula', { estadoMatricula: 'ACTIVA' })
+      .leftJoinAndSelect('matricula.grupo', 'grupo')
+      .orderBy('persona.apellidos', 'ASC')
+      .addOrderBy('persona.nombres', 'ASC');
 
-    const result = estudiantes.map((e) => ({
-      id: Number(e.id),
-      codigoEstudiante: e.codigoEstudiante,
-      estado: e.estado,
-      fechaIngreso: e.fechaIngreso,
-      persona: {
-        id: Number(e.persona.id),
-        nombres: e.persona.nombres,
-        apellidos: e.persona.apellidos,
-        nombreCompleto: `${e.persona.nombres} ${e.persona.apellidos}`,
-        email: e.persona.email,
-        documento: e.persona.documento,
-        estado: e.persona.estado,
-      },
-      grupos: (e.matriculas || [])
-        .filter((m) => m.estado === 'ACTIVA')
-        .map((m) => ({
-          id: Number(m.grupo.id),
-          codigo: m.grupo.codigo,
-          nombre: m.grupo.nombre,
-        })),
-    }));
+    if (queryDto.q) {
+      query.andWhere(
+        '(persona.nombres LIKE :q OR persona.apellidos LIKE :q OR e.codigo_estudiante LIKE :q OR persona.documento LIKE :q)',
+        { q: `%${queryDto.q}%` },
+      );
+    }
 
-    return {
-      estudiantes: result,
-      total,
-      pagina: page,
-      porPagina: limit,
-      totalPaginas: Math.ceil(total / limit),
-      vista: 'ADMIN - Todos los estudiantes del sistema (paginado)',
-    };
+    const total = await query.clone().getCount();
+    const estudiantes = await query
+      .skip((queryDto.pagina - 1) * queryDto.limite)
+      .take(queryDto.limite)
+      .getMany();
+
+    return this.buildResponse(estudiantes, total, queryDto, 'ADMINISTRACIÓN - Todos los estudiantes');
   }
 
-  private async findAllForDocente(user: any) {
-    const docente = await this.docenteRepo.findOne({
-      where: { personaId: BigInt(user.persona.id) as any },
-    });
-
+  private async findAllForDocente(user: AuthenticatedUser, queryDto: EstudianteQueryDto) {
+    const docente = await this.docenteRepo.findOne({ where: { personaId: user.persona.id } });
     if (!docente) {
-      return {
-        estudiantes: [],
-        total: 0,
-        vista: 'DOCENTE - No tienes registro de docente',
-        mensaje: 'Tu persona no está registrada como docente en el sistema.',
-      };
+      return { estudiantes: [], total: 0, pagina: queryDto.pagina, limite: queryDto.limite, totalPaginas: 0, vista: 'DOCENTE - sin registro docente' };
     }
 
-    const asignaciones = await this.asignacionRepo.find({
+    const assignments = await this.asignacionRepo.find({
       where: { docenteId: docente.id, estado: 'ACTIVA' },
-      select: { grupoId: true } as any,
+      select: { grupoId: true },
     });
-
-    if (asignaciones.length === 0) {
-      return {
-        estudiantes: [],
-        total: 0,
-        vista: 'DOCENTE - Sin grupos asignados',
-        mensaje: 'No tienes grupos asignados actualmente.',
-      };
+    const grupoIds = [...new Set(assignments.map((assignment) => Number(assignment.grupoId)))];
+    if (!grupoIds.length) {
+      return { estudiantes: [], total: 0, pagina: queryDto.pagina, limite: queryDto.limite, totalPaginas: 0, vista: 'DOCENTE - sin grupos asignados' };
     }
 
-    const grupoIds = [...new Set(asignaciones.map((a) => a.grupoId))];
+    const query = this.estudianteRepo
+      .createQueryBuilder('e')
+      .leftJoinAndSelect('e.persona', 'persona')
+      .innerJoin('e.matriculas', 'matricula', 'matricula.estudiante_id = e.id AND matricula.estado = :estadoMatricula AND matricula.grupo_id IN (:...grupoIds)', {
+        estadoMatricula: 'ACTIVA', grupoIds,
+      })
+      .leftJoinAndSelect('matricula.grupo', 'grupo')
+      .orderBy('persona.apellidos', 'ASC')
+      .addOrderBy('persona.nombres', 'ASC');
 
-    const matriculas = await this.matriculaRepo.find({
-      where: { grupoId: In(grupoIds), estado: 'ACTIVA' },
-      relations: { estudiante: { persona: true }, grupo: true },
-    });
-
-    const estudiantesMap = new Map<number, any>();
-
-    for (const m of matriculas) {
-      const estId = Number(m.estudiante.id);
-      if (!estudiantesMap.has(estId)) {
-        estudiantesMap.set(estId, {
-          id: estId,
-          codigoEstudiante: m.estudiante.codigoEstudiante,
-          estado: m.estudiante.estado,
-          persona: {
-            id: Number(m.estudiante.persona.id),
-            nombres: m.estudiante.persona.nombres,
-            apellidos: m.estudiante.persona.apellidos,
-            nombreCompleto: `${m.estudiante.persona.nombres} ${m.estudiante.persona.apellidos}`,
-            email: m.estudiante.persona.email,
-            documento: m.estudiante.persona.documento,
-            estado: m.estudiante.persona.estado,
-          },
-          grupos: [],
-        });
-      }
-      estudiantesMap.get(estId).grupos.push({
-        id: Number(m.grupo.id),
-        codigo: m.grupo.codigo,
-        nombre: m.grupo.nombre,
-      });
+    if (queryDto.q) {
+      query.andWhere(
+        '(persona.nombres LIKE :q OR persona.apellidos LIKE :q OR e.codigo_estudiante LIKE :q OR persona.documento LIKE :q)',
+        { q: `%${queryDto.q}%` },
+      );
     }
 
-    const result = Array.from(estudiantesMap.values());
+    const total = await query.clone().getCount();
+    const estudiantes = await query
+      .skip((queryDto.pagina - 1) * queryDto.limite)
+      .take(queryDto.limite)
+      .getMany();
 
+    return this.buildResponse(estudiantes, total, queryDto, 'DOCENTE - estudiantes de sus grupos');
+  }
+
+  private buildResponse(estudiantes: Estudiante[], total: number, queryDto: EstudianteQueryDto, vista: string) {
     return {
-      estudiantes: result,
-      total: result.length,
-      vista: `DOCENTE - Solo tus estudiantes (${result.length} en ${grupoIds.length} grupo(s))`,
-      docente: {
-        id: Number(docente.id),
-        codigoDocente: docente.codigoDocente,
-        gruposAsignados: grupoIds.length,
-      },
+      estudiantes: estudiantes.map((student) => ({
+        id: Number(student.id),
+        codigoEstudiante: student.codigoEstudiante,
+        estado: student.estado,
+        fechaIngreso: student.fechaIngreso,
+        persona: {
+          id: Number(student.persona.id),
+          nombres: student.persona.nombres,
+          apellidos: student.persona.apellidos,
+          nombreCompleto: `${student.persona.nombres} ${student.persona.apellidos}`,
+          email: student.persona.email,
+          documento: student.persona.documento,
+          estado: student.persona.estado,
+        },
+        grupos: (student.matriculas || []).map((matricula) => ({
+          id: Number(matricula.grupo?.id),
+          codigo: matricula.grupo?.codigo,
+          nombre: matricula.grupo?.nombre,
+        })),
+      })),
+      total,
+      pagina: queryDto.pagina,
+      limite: queryDto.limite,
+      totalPaginas: Math.ceil(total / queryDto.limite),
+      vista,
     };
   }
 }

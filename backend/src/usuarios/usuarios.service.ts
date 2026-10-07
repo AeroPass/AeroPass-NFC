@@ -1,87 +1,246 @@
 import {
+  BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
-  ConflictException,
-  BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as argon2 from 'argon2';
-import { Usuario } from '../entities/usuario.entity.js';
-import { Persona } from '../entities/persona.entity.js';
-import { Rol } from '../entities/rol.entity.js';
-import { Docente } from '../entities/docente.entity.js';
-import { Estudiante } from '../entities/estudiante.entity.js';
-import { CreateUsuarioDto } from './dto/create-usuario.dto.js';
-import { UpdateUsuarioDto } from './dto/update-usuario.dto.js';
+import { RoleCode } from '../common/enums/role.enum';
+import { Docente } from '../gestion-academica/entities/docente.entity';
+import { Estudiante } from '../estudiantes/entities/estudiante.entity';
+import { Persona } from './entities/persona.entity';
+import { TipoDocumento } from './entities/tipos-documento.entity';
+import { Usuario } from './entities/usuario.entity';
+import { Rol } from '../roles/entities/rol.entity';
+import { CreateUsuarioDto } from './dto/create-usuario.dto';
+import { UpdateUsuarioDto } from './dto/update-usuario.dto';
+import { UsuariosQueryDto } from './dto/usuarios-query.dto';
 
 @Injectable()
 export class UsuariosService {
   constructor(
-    @InjectRepository(Usuario)
-    private usuarioRepo: Repository<Usuario>,
-    @InjectRepository(Persona)
-    private personaRepo: Repository<Persona>,
-    @InjectRepository(Rol)
-    private rolRepo: Repository<Rol>,
+    @InjectRepository(Usuario) private readonly usuarioRepo: Repository<Usuario>,
+    @InjectRepository(Persona) private readonly personaRepo: Repository<Persona>,
+    @InjectRepository(TipoDocumento) private readonly tipoDocumentoRepo: Repository<TipoDocumento>,
+    @InjectRepository(Rol) private readonly rolRepo: Repository<Rol>,
   ) {}
 
-  async findAll(rol?: string, estado?: string, q?: string) {
-    // Validación explícita del filtro de estado (evita listas vacías silenciosas)
-    const estadosValidos = ['ACTIVO', 'INACTIVO', 'BLOQUEADO'];
-    if (estado && !estadosValidos.includes(estado)) {
-      throw new BadRequestException(
-        `Estado inválido. Valores permitidos: ${estadosValidos.join(', ')}.`,
-      );
-    }
-
+  async findAll(queryDto: UsuariosQueryDto) {
     const query = this.usuarioRepo
       .createQueryBuilder('u')
       .leftJoinAndSelect('u.persona', 'persona')
       .leftJoinAndSelect('u.rol', 'rol');
 
-    if (estado) query.andWhere('u.estado = :estado', { estado });
-    if (rol) query.andWhere('rol.codigo = :rol', { rol });
-    if (q) {
+    if (queryDto.estado) query.andWhere('u.estado = :estado', { estado: queryDto.estado });
+    if (queryDto.rol) query.andWhere('rol.codigo = :rol', { rol: queryDto.rol });
+    if (queryDto.q) {
       query.andWhere(
-        '(u.username LIKE :q OR persona.nombres LIKE :q OR persona.apellidos LIKE :q)',
-        { q: `%${q}%` },
+        '(u.username LIKE :q OR persona.nombres LIKE :q OR persona.apellidos LIKE :q OR persona.documento LIKE :q)',
+        { q: `%${queryDto.q}%` },
       );
     }
 
-    query.orderBy('u.createdAt', 'DESC');
-    const usuarios = await query.getMany();
+    const total = await query.clone().getCount();
+    const usuarios = await query
+      .orderBy('u.createdAt', 'DESC')
+      .skip((queryDto.pagina - 1) * queryDto.limite)
+      .take(queryDto.limite)
+      .getMany();
 
-    return usuarios.map((u) => ({
-      id: Number(u.id),
-      username: u.username,
-      estado: u.estado,
-      ultimoAccesoAt: u.ultimoAccesoAt,
-      createdAt: u.createdAt,
-      updatedAt: u.updatedAt,
-      persona: {
-        id: Number(u.persona.id),
-        nombres: u.persona.nombres,
-        apellidos: u.persona.apellidos,
-        nombreCompleto: `${u.persona.nombres} ${u.persona.apellidos}`,
-        email: u.persona.email,
-        documento: u.persona.documento,
-        estado: u.persona.estado,
-      },
-      rol: {
-        id: u.rol.id,
-        codigo: u.rol.codigo,
-        nombre: u.rol.nombre,
-      },
-    }));
+    return {
+      usuarios: usuarios.map((u) => this.toResponse(u)),
+      total,
+      pagina: queryDto.pagina,
+      limite: queryDto.limite,
+      totalPaginas: Math.ceil(total / queryDto.limite),
+    };
   }
 
   async findOne(id: number) {
     const usuario = await this.usuarioRepo.findOne({
-      where: { id: BigInt(id) as any },
+      where: { id: id as any },
       relations: { persona: true, rol: true },
     });
     if (!usuario) throw new NotFoundException('Usuario no encontrado.');
+    return this.toResponse(usuario, true);
+  }
+
+  async create(dto: CreateUsuarioDto) {
+    const rol = await this.getActiveRole(dto.rolId);
+    this.assertAccountRoleAllowed(rol.codigo as RoleCode);
+
+    const tipoDocumento = await this.tipoDocumentoRepo.findOne({ where: { id: dto.tipoDocumentoId } });
+    if (!tipoDocumento || !tipoDocumento.activo) {
+      throw new BadRequestException('El tipo de documento no existe o está inactivo.');
+    }
+
+    const existingUser = await this.usuarioRepo.findOne({ where: { username: dto.username } });
+    if (existingUser) throw new ConflictException('Ya existe un usuario con ese username.');
+
+    if (dto.email) {
+      const existingEmail = await this.personaRepo.findOne({ where: { email: dto.email } });
+      if (existingEmail) throw new ConflictException('Ya existe una persona con ese email.');
+    }
+
+    const existingDoc = await this.personaRepo.findOne({
+      where: { tipoDocumentoId: dto.tipoDocumentoId, documento: dto.documento },
+    });
+    if (existingDoc) {
+      throw new ConflictException('Ya existe una persona con ese tipo y número de documento.');
+    }
+
+    const passwordHash = await argon2.hash(dto.password, { type: argon2.argon2id });
+
+    try {
+      return await this.usuarioRepo.manager.transaction(async (manager) => {
+        const persona = manager.create(Persona, {
+          tipoDocumentoId: dto.tipoDocumentoId,
+          documento: dto.documento,
+          nombres: dto.nombres,
+          apellidos: dto.apellidos,
+          email: dto.email ?? null,
+          telefono: dto.telefono ?? null,
+          fechaNacimiento: null,
+          estado: 'ACTIVA',
+        });
+        const savedPersona = await manager.save(Persona, persona);
+
+        const usuario = manager.create(Usuario, {
+          personaId: savedPersona.id,
+          rolId: rol.id,
+          username: dto.username,
+          passwordHash,
+          estado: dto.estado ?? 'ACTIVO',
+          ultimoAccesoAt: null,
+        });
+        const savedUsuario = await manager.save(Usuario, usuario);
+
+        return {
+          id: Number(savedUsuario.id),
+          username: savedUsuario.username,
+          estado: savedUsuario.estado,
+          createdAt: savedUsuario.createdAt,
+          persona: {
+            id: Number(savedPersona.id),
+            nombres: savedPersona.nombres,
+            apellidos: savedPersona.apellidos,
+            nombreCompleto: `${savedPersona.nombres} ${savedPersona.apellidos}`,
+            email: savedPersona.email,
+            documento: savedPersona.documento,
+          },
+          rol: { id: rol.id, codigo: rol.codigo, nombre: rol.nombre },
+        };
+      });
+    } catch (error: any) {
+      if (error?.code === 'ER_DUP_ENTRY') {
+        throw new ConflictException('El username, documento o email ya existe.');
+      }
+      throw error;
+    }
+  }
+
+  async update(id: number, dto: UpdateUsuarioDto, currentUserId: number) {
+    if (id === currentUserId && dto.estado && dto.estado !== 'ACTIVO') {
+      throw new BadRequestException('No puede desactivar o bloquear su propia cuenta.');
+    }
+
+    const usuario = await this.usuarioRepo.findOne({
+      where: { id: id as any },
+      relations: { persona: true, rol: true },
+    });
+    if (!usuario) throw new NotFoundException('Usuario no encontrado.');
+
+    let newRole: Rol | undefined;
+    if (dto.rolId !== undefined && Number(dto.rolId) !== Number(usuario.rolId)) {
+      newRole = await this.getActiveRole(dto.rolId);
+      this.assertAccountRoleAllowed(newRole.codigo as RoleCode);
+    }
+
+    if (dto.email !== undefined && dto.email !== usuario.persona.email) {
+      const duplicate = await this.personaRepo.findOne({ where: { email: dto.email } });
+      if (duplicate && Number(duplicate.id) !== Number(usuario.personaId)) {
+        throw new ConflictException('Ya existe una persona con ese email.');
+      }
+    }
+
+    return this.usuarioRepo.manager.transaction(async (manager) => {
+      const personaUpdate: Partial<Persona> = {};
+      if (dto.nombres !== undefined) personaUpdate.nombres = dto.nombres;
+      if (dto.apellidos !== undefined) personaUpdate.apellidos = dto.apellidos;
+      if (dto.email !== undefined) personaUpdate.email = dto.email || null;
+      if (dto.telefono !== undefined) personaUpdate.telefono = dto.telefono || null;
+      if (Object.keys(personaUpdate).length) {
+        await manager.update(Persona, usuario.personaId as any, personaUpdate);
+      }
+
+      const usuarioUpdate: Partial<Usuario> = {};
+      if (dto.password) usuarioUpdate.passwordHash = await argon2.hash(dto.password, { type: argon2.argon2id });
+      if (newRole) usuarioUpdate.rolId = newRole.id;
+      if (dto.estado) usuarioUpdate.estado = dto.estado;
+      if (Object.keys(usuarioUpdate).length) {
+        await manager.update(Usuario, usuario.id as any, usuarioUpdate);
+      }
+
+      return this.findOne(id);
+    });
+  }
+
+  async remove(id: number, currentUserId: number) {
+    if (id === currentUserId) throw new BadRequestException('No puede eliminar su propia cuenta.');
+
+    const usuario = await this.usuarioRepo.findOne({ where: { id: id as any } });
+    if (!usuario) throw new NotFoundException('Usuario no encontrado.');
+
+    const personaId = usuario.personaId;
+
+    await this.usuarioRepo.manager.transaction(async (manager) => {
+      await manager.delete(Usuario, usuario.id as any);
+      const docente = await manager.findOne(Docente, { where: { personaId: personaId as any } });
+      const estudiante = await manager.findOne(Estudiante, { where: { personaId: personaId as any } });
+      if (!docente && !estudiante) {
+        await manager.delete(Persona, personaId as any);
+      }
+    });
+
+    return { ok: true, message: 'Usuario eliminado permanentemente.' };
+  }
+
+  async activate(id: number) {
+    const user = await this.usuarioRepo.findOne({ where: { id: id as any } });
+    if (!user) throw new NotFoundException('Usuario no encontrado.');
+    await this.usuarioRepo.update(user.id as any, { estado: 'ACTIVO' });
+    return this.findOne(id);
+  }
+
+  async deactivate(id: number, currentUserId: number) {
+    if (id === currentUserId) throw new BadRequestException('No puede desactivar su propia cuenta.');
+    const user = await this.usuarioRepo.findOne({ where: { id: id as any } });
+    if (!user) throw new NotFoundException('Usuario no encontrado.');
+    await this.usuarioRepo.update(user.id as any, { estado: 'INACTIVO' });
+    return this.findOne(id);
+  }
+
+  private async getActiveRole(id: number): Promise<Rol> {
+    const role = await this.rolRepo.findOne({ where: { id } });
+    if (!role) throw new BadRequestException('El rol especificado no existe.');
+    if (role.estado !== 'ACTIVO') throw new BadRequestException('El rol está inactivo.');
+    return role;
+  }
+
+  private assertAccountRoleAllowed(role: RoleCode) {
+    if (role === RoleCode.ESTUDIANTE) {
+      throw new BadRequestException(
+        'Los estudiantes no pueden tener cuentas de usuario ni iniciar sesión.',
+      );
+    }
+    if (![RoleCode.ADMIN, RoleCode.ADMINISTRATIVO, RoleCode.DOCENTE].includes(role)) {
+      throw new BadRequestException('El rol no está habilitado para cuentas de usuario.');
+    }
+  }
+
+  private toResponse(usuario: Usuario, includePhone = false) {
     return {
       id: Number(usuario.id),
       username: usuario.username,
@@ -96,7 +255,7 @@ export class UsuariosService {
         nombreCompleto: `${usuario.persona.nombres} ${usuario.persona.apellidos}`,
         email: usuario.persona.email,
         documento: usuario.persona.documento,
-        telefono: usuario.persona.telefono,
+        ...(includePhone ? { telefono: usuario.persona.telefono } : {}),
         estado: usuario.persona.estado,
       },
       rol: {
@@ -105,198 +264,5 @@ export class UsuariosService {
         nombre: usuario.rol.nombre,
       },
     };
-  }
-
-  async create(dto: CreateUsuarioDto) {
-    const existingUser = await this.usuarioRepo.findOne({ where: { username: dto.username } });
-    if (existingUser) {
-      throw new ConflictException('Ya existe un usuario con ese username.');
-    }
-    if (dto.email) {
-      const existingEmail = await this.personaRepo.findOne({ where: { email: dto.email } });
-      if (existingEmail) {
-        throw new ConflictException('Ya existe una persona con ese email.');
-      }
-    }
-    const existingDoc = await this.personaRepo.findOne({
-      where: { tipoDocumentoId: dto.tipoDocumentoId, documento: dto.documento } as any,
-    });
-    if (existingDoc) {
-      throw new ConflictException('Ya existe una persona con ese tipo y número de documento.');
-    }
-
-    const rol = await this.rolRepo.findOne({ where: { id: dto.rolId } });
-    if (!rol) throw new BadRequestException('El rol especificado no existe.');
-    if (rol.estado !== 'ACTIVO') throw new BadRequestException('El rol está inactivo.');
-
-    const passwordHash = await argon2.hash(dto.password);
-
-    // try/catch: si dos peticiones concurrentes pasan las validaciones previas,
-    // el UNIQUE de la BD responde ER_DUP_ENTRY -> se traduce a 409 en vez de 500.
-    try {
-      return await this.usuarioRepo.manager.transaction(async (manager) => {
-      const persona = manager.create(Persona, {
-        tipoDocumentoId: dto.tipoDocumentoId,
-        documento: dto.documento,
-        nombres: dto.nombres,
-        apellidos: dto.apellidos,
-        email: dto.email || null,
-        telefono: dto.telefono || null,
-        estado: 'ACTIVA',
-      });
-      const savedPersona = await manager.save(Persona, persona);
-
-      const usuario = manager.create(Usuario, {
-        personaId: savedPersona.id,
-        rolId: dto.rolId,
-        username: dto.username,
-        passwordHash,
-        estado: dto.estado || 'ACTIVO',
-      });
-      const savedUsuario = await manager.save(Usuario, usuario);
-
-      return {
-        id: Number(savedUsuario.id),
-        username: savedUsuario.username,
-        estado: savedUsuario.estado,
-        createdAt: savedUsuario.createdAt,
-        persona: {
-          id: Number(savedPersona.id),
-          nombres: savedPersona.nombres,
-          apellidos: savedPersona.apellidos,
-          nombreCompleto: `${savedPersona.nombres} ${savedPersona.apellidos}`,
-          email: savedPersona.email,
-          documento: savedPersona.documento,
-        },
-        rol: {
-          id: rol.id,
-          codigo: rol.codigo,
-          nombre: rol.nombre,
-        },
-      };
-    });
-    } catch (error: any) {
-      if (error?.code === 'ER_DUP_ENTRY') {
-        throw new ConflictException('El username, documento o email ya existe.');
-      }
-      throw error;
-    }
-  }
-
-  async update(id: number, dto: UpdateUsuarioDto, currentUserId: number) {
-    const usuario = await this.usuarioRepo.findOne({
-      where: { id: BigInt(id) as any },
-      relations: { persona: true },
-    });
-    if (!usuario) throw new NotFoundException('Usuario no encontrado.');
-
-    if (dto.email && dto.email !== usuario.persona.email) {
-      const dup = await this.personaRepo.findOne({ where: { email: dto.email } });
-      if (dup && Number(dup.id) !== Number(usuario.personaId)) {
-        throw new ConflictException('Ya existe una persona con ese email.');
-      }
-    }
-
-    if (dto.rolId && Number(dto.rolId) !== Number(usuario.rolId)) {
-      const rol = await this.rolRepo.findOne({ where: { id: dto.rolId } });
-      if (!rol) throw new BadRequestException('El rol especificado no existe.');
-      if (rol.estado !== 'ACTIVO') throw new BadRequestException('El rol está inactivo.');
-    }
-
-    return this.usuarioRepo.manager.transaction(async (manager) => {
-      const personaUpdate: any = {};
-      if (dto.nombres) personaUpdate.nombres = dto.nombres;
-      if (dto.apellidos) personaUpdate.apellidos = dto.apellidos;
-      if (dto.email !== undefined) personaUpdate.email = dto.email || null;
-      if (dto.telefono !== undefined) personaUpdate.telefono = dto.telefono || null;
-
-      if (Object.keys(personaUpdate).length > 0) {
-        await manager.update(Persona, usuario.personaId as any, personaUpdate);
-      }
-
-      const usuarioUpdate: any = {};
-      if (dto.password) usuarioUpdate.passwordHash = await argon2.hash(dto.password);
-      if (dto.rolId) usuarioUpdate.rolId = dto.rolId;
-      if (dto.estado) usuarioUpdate.estado = dto.estado;
-
-      if (Object.keys(usuarioUpdate).length > 0) {
-        await manager.update(Usuario, usuario.id as any, usuarioUpdate);
-      }
-
-      const updated = await manager.findOne(Usuario, {
-        where: { id: usuario.id } as any,
-        relations: { persona: true, rol: true },
-      });
-
-      if (!updated) throw new NotFoundException('Error al recargar el usuario.');
-
-      return {
-        id: Number(updated.id),
-        username: updated.username,
-        estado: updated.estado,
-        updatedAt: updated.updatedAt,
-        persona: {
-          id: Number(updated.persona.id),
-          nombres: updated.persona.nombres,
-          apellidos: updated.persona.apellidos,
-          nombreCompleto: `${updated.persona.nombres} ${updated.persona.apellidos}`,
-          email: updated.persona.email,
-          documento: updated.persona.documento,
-        },
-        rol: {
-          id: updated.rol.id,
-          codigo: updated.rol.codigo,
-          nombre: updated.rol.nombre,
-        },
-      };
-    });
-  }
-
-  async remove(id: number, currentUserId: number) {
-    if (Number(id) === Number(currentUserId)) {
-      throw new BadRequestException('No puede eliminar su propia cuenta.');
-    }
-
-    const usuario = await this.usuarioRepo.findOne({ where: { id: BigInt(id) as any } });
-    if (!usuario) throw new NotFoundException('Usuario no encontrado.');
-
-    const personaId = usuario.personaId;
-
-    await this.usuarioRepo.manager.transaction(async (manager) => {
-      await manager.delete(Usuario, usuario.id as any);
-
-      // Solo elimina la persona si NO está referenciada por docente/estudiante.
-      // Antes un catch vacío ocultaba errores reales de BD (conexión, locks...).
-      const docente = await manager.findOne(Docente, {
-        where: { personaId: personaId as any },
-      });
-      const estudiante = await manager.findOne(Estudiante, {
-        where: { personaId: personaId as any },
-      });
-
-      if (!docente && !estudiante) {
-        await manager.delete(Persona, personaId as any);
-      }
-    });
-
-    return { ok: true, message: 'Usuario eliminado permanentemente.' };
-  }
-
-  async activate(id: number) {
-    const usuario = await this.usuarioRepo.findOne({ where: { id: BigInt(id) as any } });
-    if (!usuario) throw new NotFoundException('Usuario no encontrado.');
-    await this.usuarioRepo.update(usuario.id as any, { estado: 'ACTIVO' } as any);
-    return this.findOne(Number(id));
-  }
-
-  async deactivate(id: number, currentUserId: number) {
-    if (Number(id) === Number(currentUserId)) {
-      throw new BadRequestException('No puede desactivar su propia cuenta.');
-    }
-
-    const usuario = await this.usuarioRepo.findOne({ where: { id: BigInt(id) as any } });
-    if (!usuario) throw new NotFoundException('Usuario no encontrado.');
-    await this.usuarioRepo.update(usuario.id as any, { estado: 'INACTIVO' } as any);
-    return this.findOne(Number(id));
   }
 }

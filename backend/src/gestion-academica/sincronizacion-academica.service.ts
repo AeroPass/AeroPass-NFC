@@ -62,7 +62,7 @@ export class SincronizacionAcademicaService
       host: this.config.get<string>('SIGEDIN_DB_HOST') ?? '127.0.0.1',
       port: Number(this.config.get<string>('SIGEDIN_DB_PORT') ?? 3306),
       username: this.config.get<string>('SIGEDIN_DB_USERNAME') ?? 'root',
-      password: this.config.get<string>('SIGEDIN_DB_PASSWORD') ?? '',
+      password: this.config.get<string>('SIGEDIN_DB_PASSWORD', ''),
       database: this.config.get<string>('SIGEDIN_DB_DATABASE') ?? 'sigedin',
       synchronize: false,
     });

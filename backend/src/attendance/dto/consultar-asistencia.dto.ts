@@ -1,19 +1,5 @@
 import { Type } from 'class-transformer';
-import {
-  IsDateString,
-  IsEnum,
-  IsInt,
-  IsOptional,
-  Max,
-  Min,
-} from 'class-validator';
-
-const resultados = [
-  'ASISTENCIA',
-  'TARDANZA',
-  'JUSTIFICADA',
-  'ANULADA',
-] as const;
+import { IsDateString, IsEnum, IsInt, IsOptional, Max, Min } from 'class-validator';
 
 export class ConsultarAsistenciaDto {
   @IsOptional()
@@ -55,8 +41,8 @@ export class ConsultarAsistenciaDto {
   grupoId?: number;
 
   @IsOptional()
-  @IsEnum(resultados)
-  resultado?: (typeof resultados)[number];
+  @IsEnum(['ASISTENCIA', 'TARDANZA', 'JUSTIFICADA', 'ANULADA'])
+  resultado?: 'ASISTENCIA' | 'TARDANZA' | 'JUSTIFICADA' | 'ANULADA';
 
   @IsOptional()
   @Type(() => Number)

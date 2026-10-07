@@ -1,14 +1,13 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsArray, IsNumber, IsOptional, MinLength, MaxLength, IsEnum } from 'class-validator';
+import { IsEnum, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import { RoleCode } from '../../common/enums/role.enum';
 
 export class CreateRolDto {
-  @ApiProperty({ example: 'COORDINADOR' })
-  @IsString()
-  @MinLength(2)
-  @MaxLength(40)
-  codigo: string;
+  @ApiProperty({ enum: RoleCode })
+  @IsEnum(RoleCode)
+  codigo: RoleCode;
 
-  @ApiProperty({ example: 'Coordinador Académico' })
+  @ApiProperty()
   @IsString()
   @MinLength(2)
   @MaxLength(80)
@@ -23,11 +22,5 @@ export class CreateRolDto {
   @ApiPropertyOptional({ enum: ['ACTIVO', 'INACTIVO'], default: 'ACTIVO' })
   @IsOptional()
   @IsEnum(['ACTIVO', 'INACTIVO'])
-  estado?: string;
-
-  @ApiPropertyOptional({ type: [Number] })
-  @IsOptional()
-  @IsArray()
-  @IsNumber({}, { each: true })
-  permisosIds?: number[];
+  estado?: 'ACTIVO' | 'INACTIVO';
 }
