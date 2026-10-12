@@ -16,7 +16,7 @@ const resultados = [
   'JUSTIFICADA',
   'ANULADA',
 ] as const;
-const fuentes = ['NFC', 'MANUAL', 'IMPORTACION'] as const;
+const fuentes = ['MANUAL', 'IMPORTACION'] as const;
 
 export class CrearAsistenciaDto {
   @ApiProperty({ description: 'ID del estudiante', example: 1, minimum: 1 })

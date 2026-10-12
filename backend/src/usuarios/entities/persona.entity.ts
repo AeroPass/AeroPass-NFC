@@ -5,6 +5,7 @@ import {
   Index,
   JoinColumn,
   ManyToOne,
+  OneToMany,
   OneToOne,
   PrimaryGeneratedColumn,
   Unique,
@@ -60,4 +61,7 @@ export class Persona {
 
   @OneToOne('Estudiante', 'persona', { onDelete: 'RESTRICT' })
   estudiante!: any;
+
+  @OneToMany('AsignacionTarjeta', 'persona')
+  asignacionesTarjeta!: any[];
 }

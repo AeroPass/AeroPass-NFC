@@ -13,6 +13,7 @@ class ReadingMode(str, Enum):
 class AgentState(str, Enum):
     IDLE = "idle"
     WAITING_CARD = "waiting_card"
+    RECONNECTING = "reconnecting"
     READING = "reading"
     CARD_PRESENT = "card_present"
 

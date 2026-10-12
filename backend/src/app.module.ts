@@ -1,4 +1,4 @@
-import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { APP_GUARD } from '@nestjs/core';
@@ -17,7 +17,8 @@ import { AuditoriaModule } from './auditoria/auditoria.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { PermissionsGuard } from './auth/permissions.guard';
-import { AuthTokenMiddleware } from './auth/middlewares/auth-token.middleware';
+import { EventEmitterModule } from '@nestjs/event-emitter';
+import { AsignacionTarjeta } from './tarjetas/entities/asignacion-tarjeta.entity';
 import { Auditoria } from './auditoria/entities/auditoria.entity';
 import { Asistencia } from './attendance/entities/asistencia.entity';
 import { Tarjeta } from './tarjetas/entities/tarjeta.entity';
@@ -51,7 +52,7 @@ import { Horario } from './gestion-academica/entities/horario.entity';
         username: config.get<string>('DB_USERNAME', 'root'),
         password: config.get<string>('DB_PASSWORD', ''),
         database: config.get<string>('DB_DATABASE', 'control_acceso_nfc'),
-        entities: [Auditoria, Asistencia, Tarjeta, Usuario, Persona, TiposDocumento, Rol, RolPermiso, Permiso, Estudiante, Docente, Carrera, Materia, Periodo, Semestre, Grupo, AsignacionDocente, MatriculaGrupo, Salon, Horario],
+        entities: [Auditoria, Asistencia, Tarjeta, AsignacionTarjeta, Usuario, Persona, TiposDocumento, Rol, RolPermiso, Permiso, Estudiante, Docente, Carrera, Materia, Periodo, Semestre, Grupo, AsignacionDocente, MatriculaGrupo, Salon, Horario],
         synchronize: false,
       }),
     }),
@@ -69,6 +70,7 @@ import { Horario } from './gestion-academica/entities/horario.entity';
         synchronize: false,
       }),
     }),
+    EventEmitterModule.forRoot(),
     AuthModule, UsuariosModule, EstudiantesModule, RolesModule, PermisosModule,
     AttendanceModule, ReportsModule, TarjetasModule, GestionAcademicaModule, AuditoriaModule,
   ],
@@ -80,8 +82,4 @@ import { Horario } from './gestion-academica/entities/horario.entity';
     { provide: APP_GUARD, useClass: PermissionsGuard },
   ],
 })
-export class AppModule implements NestModule {
-  configure(consumer: MiddlewareConsumer) {
-    consumer.apply(AuthTokenMiddleware).forRoutes('*');
-  }
-}
+export class AppModule {}
