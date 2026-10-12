@@ -1,19 +1,19 @@
 import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
 
 @Entity('tipos_documento')
-export class TipoDocumento {
+export class TiposDocumento {
   @PrimaryGeneratedColumn({ type: 'smallint', unsigned: true })
-  id: number;
+  id!: number;
 
   @Column({ type: 'varchar', length: 20, unique: true })
-  codigo: string;
+  codigo!: string;
 
   @Column({ type: 'varchar', length: 60, unique: true })
-  nombre: string;
+  nombre!: string;
 
   @Column({ type: 'boolean', default: true })
-  activo: boolean;
+  activo!: boolean;
 
   @OneToMany('Persona', 'tipoDocumento')
-  personas: any[];
+  personas!: any[];
 }

@@ -3,23 +3,23 @@ import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
 @Entity('roles')
 export class Rol {
   @PrimaryGeneratedColumn({ type: 'smallint', unsigned: true })
-  id: number;
+  id!: number;
 
   @Column({ type: 'varchar', length: 40, unique: true })
-  codigo: string;
+  codigo!: string;
 
   @Column({ type: 'varchar', length: 80, unique: true })
-  nombre: string;
+  nombre!: string;
 
   @Column({ type: 'varchar', length: 255, nullable: true })
-  descripcion: string | null;
+  descripcion!: string | null;
 
   @Column({ type: 'enum', enum: ['ACTIVO', 'INACTIVO'], default: 'ACTIVO' })
-  estado: 'ACTIVO' | 'INACTIVO';
+  estado!: string;
 
   @OneToMany('Usuario', 'rol')
-  usuarios: any[];
+  usuarios!: any[];
 
-  @OneToMany('RolPermiso', 'rol', { cascade: false })
-  rolPermisos: any[];
+  @OneToMany('RolPermiso', 'rol', { cascade: true })
+  rolPermisos!: any[];
 }

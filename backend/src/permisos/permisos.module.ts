@@ -1,13 +1,12 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { Permiso } from './entities/permiso.entity';
-import { PermisosController } from './permisos.controller';
 import { PermisosService } from './permisos.service';
+import { PermisosController } from './permisos.controller';
+import { Permiso } from '../permisos/entities/permiso.entity';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Permiso])],
   controllers: [PermisosController],
   providers: [PermisosService],
-  exports: [PermisosService],
 })
-export class PermisosModule { }
+export class PermisosModule {}

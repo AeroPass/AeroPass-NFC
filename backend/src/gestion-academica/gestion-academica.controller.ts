@@ -1,38 +1,32 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { RequirePermissions } from '../auth/decorators/permissions.decorator';
-import { RoleCode } from '../common/enums/role.enum';
-import { Roles } from '../common/decorators/roles.decorator';
+import { Controller, Get, Post } from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiTags,
+  ApiOperation,
+  ApiOkResponse,
+  ApiCreatedResponse,
+} from '@nestjs/swagger';
 import { ResultadoSincronizacionDto } from './dto/resultado-sincronizacion.dto';
-import { SincronizarDatosMaestrosDto } from './dto/sincronizar-datos-maestros.dto';
 import { GestionAcademicaService } from './gestion-academica.service';
 import { SincronizacionAcademicaService } from './sincronizacion-academica.service';
+import { Roles } from '../common/decorators/roles.decorator';
+import { Role } from '../common/enums/role.enum';
+import { RequirePermissions } from '../auth/permissions.decorator';
 
 @ApiTags('Gestión académica')
 @ApiBearerAuth()
-@Roles(RoleCode.ADMIN, RoleCode.ADMINISTRATIVO)
-@RequirePermissions('ACADEMICO_GESTIONAR')
 @Controller('gestion-academica')
+@Roles(Role.ADMIN, Role.ADMINISTRATIVO)
+@RequirePermissions('ACADEMICO_GESTIONAR')
 export class GestionAcademicaController {
-  constructor(
-    private readonly gestionAcademicaService: GestionAcademicaService,
-    private readonly sincronizacionAcademicaService: SincronizacionAcademicaService,
-  ) {}
-
+  constructor(private readonly gestionAcademicaService: GestionAcademicaService, private readonly sincronizacionAcademicaService: SincronizacionAcademicaService) {}
   @Get()
-  getHello() {
-    return this.gestionAcademicaService.getHello();
-  }
+  @ApiOperation({ summary: 'Comprobar disponibilidad de la gestión académica' })
+  @ApiOkResponse({ description: 'Mensaje de bienvenida del módulo académico' })
+  getHello(): string { return this.gestionAcademicaService.getHello(); }
 
   @Post('sincronizacion/datos-maestros')
-  sincronizarDatosMaestros(@Body() dto: SincronizarDatosMaestrosDto): Promise<ResultadoSincronizacionDto> {
-    if (dto.ejecutar === false) {
-      return Promise.resolve({
-        iniciadoEn: new Date().toISOString(),
-        finalizadoEn: new Date().toISOString(),
-        registrosProcesados: {},
-      });
-    }
-    return this.sincronizacionAcademicaService.sincronizarDatosMaestros();
-  }
+  @ApiOperation({ summary: 'Sincronizar datos maestros académicos' })
+  @ApiCreatedResponse({ description: 'Resultado de la sincronización', type: ResultadoSincronizacionDto })
+  sincronizarDatosMaestros(): Promise<ResultadoSincronizacionDto> { return this.sincronizacionAcademicaService.sincronizarDatosMaestros(); }
 }

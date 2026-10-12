@@ -16,48 +16,48 @@ import {
 @Index('idx_personas_apellidos_nombres', ['apellidos', 'nombres'])
 export class Persona {
   @PrimaryGeneratedColumn({ type: 'bigint', unsigned: true })
-  id: number;
+  id!: number;
 
   @Column({ name: 'tipo_documento_id', type: 'smallint', unsigned: true })
-  tipoDocumentoId: number;
+  tipoDocumentoId!: number;
 
   @Column({ type: 'varchar', length: 30 })
-  documento: string;
+  documento!: string;
 
   @Column({ type: 'varchar', length: 100 })
-  nombres: string;
+  nombres!: string;
 
   @Column({ type: 'varchar', length: 100 })
-  apellidos: string;
+  apellidos!: string;
 
   @Column({ type: 'varchar', length: 150, nullable: true, unique: true })
-  email: string | null;
+  email!: string | null;
 
   @Column({ type: 'varchar', length: 30, nullable: true })
-  telefono: string | null;
+  telefono!: string | null;
 
   @Column({ name: 'fecha_nacimiento', type: 'date', nullable: true })
-  fechaNacimiento: string | null;
+  fechaNacimiento!: Date | null;
 
   @Column({ type: 'enum', enum: ['ACTIVA', 'INACTIVA'], default: 'ACTIVA' })
-  estado: 'ACTIVA' | 'INACTIVA';
+  estado!: string;
 
-  @CreateDateColumn({ name: 'created_at', type: 'timestamp' })
-  createdAt: Date;
+  @CreateDateColumn({ name: 'created_at' })
+  createdAt!: Date;
 
-  @UpdateDateColumn({ name: 'updated_at', type: 'timestamp' })
-  updatedAt: Date;
+  @UpdateDateColumn({ name: 'updated_at' })
+  updatedAt!: Date;
 
-  @ManyToOne('TipoDocumento', 'personas', { onDelete: 'RESTRICT', onUpdate: 'CASCADE' })
+  @ManyToOne('TiposDocumento', 'personas', { onDelete: 'RESTRICT', onUpdate: 'CASCADE' })
   @JoinColumn({ name: 'tipo_documento_id' })
-  tipoDocumento: any;
+  tipoDocumento!: any;
 
-  @OneToOne('Usuario', 'persona')
-  usuario: any;
+  @OneToOne('Usuario', 'persona', { onDelete: 'RESTRICT' })
+  usuario!: any;
 
-  @OneToOne('Docente', 'persona')
-  docente: any;
+  @OneToOne('Docente', 'persona', { onDelete: 'RESTRICT' })
+  docente!: any;
 
-  @OneToOne('Estudiante', 'persona')
-  estudiante: any;
+  @OneToOne('Estudiante', 'persona', { onDelete: 'RESTRICT' })
+  estudiante!: any;
 }

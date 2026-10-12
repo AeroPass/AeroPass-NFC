@@ -1,61 +1,76 @@
-import { MiddlewareConsumer, Module, NestModule, RequestMethod } from '@nestjs/common';
-import { APP_GUARD } from '@nestjs/core';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { APP_GUARD } from '@nestjs/core';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { AttendanceController } from './attendance/attendance.controller';
-import { AttendanceModule } from './attendance/attendance.module';
-import { AuditoriaController } from './auditoria/auditoria.controller';
-import { AuditoriaModule } from './auditoria/auditoria.module';
-import { AuthController } from './auth/auth.controller';
 import { AuthModule } from './auth/auth.module';
-import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
-import { EstudiantesController } from './estudiantes/estudiantes.controller';
-import { EstudiantesModule } from './estudiantes/estudiantes.module';
-import { GestionAcademicaController } from './gestion-academica/gestion-academica.controller';
-import { GestionAcademicaModule } from './gestion-academica/gestion-academica.module';
-import { PermissionsGuard } from './common/guards/permissions.guard';
-import { RolesGuard } from './common/guards/roles.guard';
-import { AuthHeaderMiddleware } from './common/middleware/auth-header.middleware';
-import { PermisosController } from './permisos/permisos.controller';
-import { PermisosModule } from './permisos/permisos.module';
-import { ReportsController } from './reports/reports.controller';
-import { ReportsModule } from './reports/reports.module';
-import { RolesController } from './roles/roles.controller';
-import { RolesModule } from './roles/roles.module';
-import { TarjetasController } from './tarjetas/tarjetas.controller';
-import { TarjetasModule } from './tarjetas/tarjetas.module';
-import { UsuariosController } from './usuarios/usuarios.controller';
 import { UsuariosModule } from './usuarios/usuarios.module';
-import configuration from './config/configuration';
+import { EstudiantesModule } from './estudiantes/estudiantes.module';
+import { RolesModule } from './roles/roles.module';
+import { PermisosModule } from './permisos/permisos.module';
+import { AttendanceModule } from './attendance/attendance.module';
+import { ReportsModule } from './reports/reports.module';
+import { TarjetasModule } from './tarjetas/tarjetas.module';
+import { GestionAcademicaModule } from './gestion-academica/gestion-academica.module';
+import { AuditoriaModule } from './auditoria/auditoria.module';
+import { JwtAuthGuard } from './auth/jwt-auth.guard';
+import { RolesGuard } from './common/guards/roles.guard';
+import { PermissionsGuard } from './auth/permissions.guard';
+import { AuthTokenMiddleware } from './auth/middlewares/auth-token.middleware';
+import { Auditoria } from './auditoria/entities/auditoria.entity';
+import { Asistencia } from './attendance/entities/asistencia.entity';
+import { Tarjeta } from './tarjetas/entities/tarjeta.entity';
+import { Usuario } from './usuarios/entities/usuario.entity';
+import { Persona } from './usuarios/entities/persona.entity';
+import { TiposDocumento } from './usuarios/entities/tipos-documento.entity';
+import { Rol } from './roles/entities/rol.entity';
+import { RolPermiso } from './roles/entities/rol-permiso.entity';
+import { Permiso } from './permisos/entities/permiso.entity';
+import { Estudiante } from './estudiantes/entities/estudiante.entity';
+import { Docente } from './gestion-academica/entities/docente.entity';
+import { Carrera } from './gestion-academica/entities/carrera.entity';
+import { Materia } from './gestion-academica/entities/materia.entity';
+import { Periodo } from './gestion-academica/entities/periodo.entity';
+import { Semestre } from './gestion-academica/entities/semestre.entity';
+import { Grupo } from './gestion-academica/entities/grupo.entity';
+import { AsignacionDocente } from './gestion-academica/entities/asignacion-docente.entity';
+import { MatriculaGrupo } from './gestion-academica/entities/matricula-grupo.entity';
+import { Salon } from './gestion-academica/entities/salon.entity';
+import { Horario } from './gestion-academica/entities/horario.entity';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true, load: [configuration], cache: true }),
+    ConfigModule.forRoot({ isGlobal: true }),
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
         type: 'mysql',
-        host: config.getOrThrow<string>('database.host'),
-        port: config.getOrThrow<number>('database.port'),
-        username: config.getOrThrow<string>('database.username'),
-        password: config.get<string>('database.password', ''),
-        database: config.getOrThrow<string>('database.name'),
-        autoLoadEntities: true,
+        host: config.get<string>('DB_HOST', '127.0.0.1'),
+        port: Number(config.get<string>('DB_PORT', '3306')),
+        username: config.get<string>('DB_USERNAME', 'root'),
+        password: config.get<string>('DB_PASSWORD', ''),
+        database: config.get<string>('DB_DATABASE', 'control_acceso_nfc'),
+        entities: [Auditoria, Asistencia, Tarjeta, Usuario, Persona, TiposDocumento, Rol, RolPermiso, Permiso, Estudiante, Docente, Carrera, Materia, Periodo, Semestre, Grupo, AsignacionDocente, MatriculaGrupo, Salon, Horario],
         synchronize: false,
       }),
     }),
-    AuthModule,
-    AuditoriaModule,
-    UsuariosModule,
-    RolesModule,
-    PermisosModule,
-    EstudiantesModule,
-    GestionAcademicaModule,
-    AttendanceModule,
-    ReportsModule,
-    TarjetasModule,
+    TypeOrmModule.forRootAsync({
+      name: 'SIGEDIN',
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        type: 'mysql',
+        host: config.get<string>('SIGEDIN_DB_HOST', '127.0.0.1'),
+        port: Number(config.get<string>('SIGEDIN_DB_PORT', '3306')),
+        username: config.get<string>('SIGEDIN_DB_USERNAME', 'root'),
+        password: config.get<string>('SIGEDIN_DB_PASSWORD', ''),
+        database: config.get<string>('SIGEDIN_DB_DATABASE', 'sigedin'),
+        entities: [],
+        synchronize: false,
+      }),
+    }),
+    AuthModule, UsuariosModule, EstudiantesModule, RolesModule, PermisosModule,
+    AttendanceModule, ReportsModule, TarjetasModule, GestionAcademicaModule, AuditoriaModule,
   ],
   controllers: [AppController],
   providers: [
@@ -67,20 +82,6 @@ import configuration from './config/configuration';
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    consumer
-      .apply(AuthHeaderMiddleware)
-      .exclude({ path: 'auth/login', method: RequestMethod.POST })
-      .forRoutes(
-        AuthController,
-        UsuariosController,
-        RolesController,
-        PermisosController,
-        EstudiantesController,
-        GestionAcademicaController,
-        AttendanceController,
-        ReportsController,
-        TarjetasController,
-        AuditoriaController,
-      );
+    consumer.apply(AuthTokenMiddleware).forRoutes('*');
   }
 }

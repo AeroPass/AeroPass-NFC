@@ -1,4 +1,10 @@
-import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
+} from 'typeorm';
 
 export enum EstadoTarjeta {
   ACTIVA = 'ACTIVA',
@@ -8,24 +14,50 @@ export enum EstadoTarjeta {
 
 @Entity('tarjetas_nfc')
 export class Tarjeta {
-  @PrimaryGeneratedColumn({ type: 'bigint', unsigned: true })
-  id: number;
+  @PrimaryGeneratedColumn({
+    type: 'bigint',
+    unsigned: true,
+  })
+  id!: string;
 
-  @Column({ type: 'varchar', length: 64, unique: true })
-  uid: string;
+  @Column({
+    type: 'varchar',
+    length: 64,
+    unique: true,
+  })
+  uid!: string;
 
-  @Column({ type: 'enum', enum: EstadoTarjeta, default: EstadoTarjeta.ACTIVA })
-  estado: EstadoTarjeta;
+  @Column({
+    type: 'enum',
+    enum: EstadoTarjeta,
+    default: EstadoTarjeta.ACTIVA,
+  })
+  estado!: EstadoTarjeta;
 
-  @Column({ name: 'fecha_emision', type: 'date', nullable: true })
-  fechaEmision: string | null;
+  @Column({
+    name: 'fecha_emision',
+    type: 'date',
+    nullable: true,
+  })
+  fechaEmision!: Date | null;
 
-  @Column({ type: 'varchar', length: 255, nullable: true })
-  observaciones: string | null;
+  @Column({
+    type: 'varchar',
+    length: 255,
+    nullable: true,
+  })
+  observaciones!: string | null;
 
-  @CreateDateColumn({ name: 'created_at', type: 'timestamp' })
-  createdAt: Date;
+  @CreateDateColumn({
+    name: 'created_at',
+    type: 'timestamp',
+  })
+  createdAt!: Date;
 
-  @UpdateDateColumn({ name: 'updated_at', type: 'timestamp' })
-  updatedAt: Date;
+  @UpdateDateColumn({
+    name: 'updated_at',
+    type: 'timestamp',
+  })
+  updatedAt!: Date;
 }
+

@@ -1,6 +1,9 @@
-export enum RoleCode {
+export enum Role {
   ADMIN = 'ADMIN',
-  ADMINISTRATIVO = 'ADMINISTRATIVO',
   DOCENTE = 'DOCENTE',
+  ADMINISTRATIVO = 'ADMINISTRATIVO',
   ESTUDIANTE = 'ESTUDIANTE',
 }
+
+export const LOGIN_ENABLED_ROLES = [Role.ADMIN, Role.DOCENTE, Role.ADMINISTRATIVO] as const;
+export const FIXED_ROLE_CODES = [Role.ADMIN, Role.DOCENTE, Role.ADMINISTRATIVO, Role.ESTUDIANTE] as const;
