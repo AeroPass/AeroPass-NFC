@@ -1,23 +1,24 @@
 import { Controller, Get, Query } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { RequirePermissions } from '../auth/decorators/permissions.decorator';
-import { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interface';
-import { RoleCode } from '../common/enums/role.enum';
-import { Roles } from '../common/decorators/roles.decorator';
-import { PermisosQueryDto } from './dto/permisos-query.dto';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiOkResponse } from '@nestjs/swagger';
 import { PermisosService } from './permisos.service';
+import { RequirePermissions } from '../auth/permissions.decorator';
+import { CurrentUser } from '../auth/current-user.decorator';
+import { PermisosQueryDto } from './dto/permisos-query.dto';
 
 @ApiTags('Permisos')
 @ApiBearerAuth()
-@Roles(RoleCode.ADMIN)
-@RequirePermissions('PERMISOS_GESTIONAR')
 @Controller('permisos')
 export class PermisosController {
-  constructor(private readonly permisos: PermisosService) {}
+  constructor(private readonly permisosService: PermisosService) {}
 
   @Get()
-  findAll(@CurrentUser() user: AuthenticatedUser, @Query() query: PermisosQueryDto) {
-    return this.permisos.findAll(user, query);
+  // Antes cualquier usuario autenticado (incluso ESTUDIANTE) podía listar TODOS
+  // los permisos del sistema. Ahora se exige el permiso de gestión.
+  // Si tu frontend de docente necesita este endpoint, cambia a 'AUTH_LOGIN'.
+  @RequirePermissions('PERMISOS_GESTIONAR')
+  @ApiOperation({ summary: 'Listar permisos (requiere PERMISOS_GESTIONAR)' })
+  @ApiOkResponse({ description: 'Listado de permisos que coinciden con los filtros' })
+  findAll(@CurrentUser() user: any, @Query() query: PermisosQueryDto) {
+    return this.permisosService.findAll(user, query);
   }
 }

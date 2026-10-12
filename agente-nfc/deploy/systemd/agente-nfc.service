@@ -1,0 +1,14 @@
+[Unit]
+Description=Agente NFC local WebSocket
+After=default.target
+
+[Service]
+Type=simple
+WorkingDirectory=/RUTA/ABSOLUTA/AL/PROYECTO
+ExecStart=/RUTA/ABSOLUTA/AL/PROYECTO/.venv/bin/python -m nfc_agent
+Restart=on-failure
+RestartSec=3
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=default.target

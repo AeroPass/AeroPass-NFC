@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools==84.0.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agente-nfc-local"
+version = "1.0.0"
+description = "Agente NFC multiplataforma con API WebSocket local"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Agente NFC" }]
+dependencies = ["websockets==16.1.1"]
+
+[tool.setuptools.packages.find]
+include = ["nfc_agent*"]

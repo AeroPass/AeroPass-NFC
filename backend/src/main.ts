@@ -1,34 +1,26 @@
-import { ValidationPipe } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
-import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
+import { ValidationPipe } from '@nestjs/common';
+import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import { AllExceptionsFilter } from './common/all-exceptions.filter';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  const config = app.get(ConfigService);
-
-  app.useGlobalPipes(
-    new ValidationPipe({
-      transform: true,
-      whitelist: true,
-      forbidNonWhitelisted: true,
-    }),
-  );
+  const apiPrefix = process.env.API_PREFIX || 'api';
+  app.setGlobalPrefix(apiPrefix);
+  app.useGlobalPipes(new ValidationPipe({ transform: true, whitelist: true, forbidNonWhitelisted: true }));
   app.useGlobalFilters(new AllExceptionsFilter());
-  app.enableCors();
 
   const swaggerConfig = new DocumentBuilder()
     .setTitle('AeroPass NFC API')
-    .setDescription('API de control de acceso, asistencia y auditoría con JWT y RBAC.')
-    .setVersion('1.0.0')
+    .setDescription('API con JWT, roles y permisos')
+    .setVersion('1.0')
     .addBearerAuth()
     .build();
   const document = SwaggerModule.createDocument(app, swaggerConfig);
-  SwaggerModule.setup('docs', app, document, { swaggerOptions: { persistAuthorization: true } });
+  SwaggerModule.setup(`${apiPrefix}/docs`, app, document);
 
-  await app.listen(config.get<number>('port', 3000));
+  await app.listen(Number(process.env.PORT || 3000));
 }
 
 void bootstrap();

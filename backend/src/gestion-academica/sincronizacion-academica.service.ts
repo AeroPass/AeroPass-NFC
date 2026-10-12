@@ -4,8 +4,8 @@ import {
   OnModuleDestroy,
   OnModuleInit,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { DataSource, QueryRunner } from 'typeorm';
+import { InjectDataSource } from '@nestjs/typeorm';
 import { ResultadoSincronizacionDto } from './dto/resultado-sincronizacion.dto';
 
 const SIX_HOURS_IN_MS = 6 * 60 * 60 * 1000;
@@ -49,24 +49,13 @@ export class SincronizacionAcademicaService
   implements OnModuleInit, OnModuleDestroy
 {
   private readonly logger = new Logger(SincronizacionAcademicaService.name);
-  private readonly origenDataSource: DataSource;
   private temporizador?: NodeJS.Timeout;
   private sincronizacionEnCurso = false;
 
   constructor(
-    private readonly config: ConfigService,
     private readonly destinoDataSource: DataSource,
-  ) {
-    this.origenDataSource = new DataSource({
-      type: 'mysql',
-      host: this.config.get<string>('SIGEDIN_DB_HOST') ?? '127.0.0.1',
-      port: Number(this.config.get<string>('SIGEDIN_DB_PORT') ?? 3306),
-      username: this.config.get<string>('SIGEDIN_DB_USERNAME') ?? 'root',
-      password: this.config.get<string>('SIGEDIN_DB_PASSWORD', ''),
-      database: this.config.get<string>('SIGEDIN_DB_DATABASE') ?? 'sigedin',
-      synchronize: false,
-    });
-  }
+    @InjectDataSource('SIGEDIN') private readonly origenDataSource: DataSource,
+  ) {}
 
   onModuleInit(): void {
     this.temporizador = setInterval(() => {

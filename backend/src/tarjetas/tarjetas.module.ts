@@ -10,4 +10,5 @@ import { TarjetasService } from './tarjetas.service';
   providers: [TarjetasService],
   exports: [TarjetasService],
 })
-export class TarjetasModule { }
+export class TarjetasModule {}
+

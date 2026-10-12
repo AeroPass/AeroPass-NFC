@@ -18,7 +18,7 @@ Backend NestJS alineado con la base de datos `control_acceso_nfc` entregada para
   - `ESTUDIANTE` → Estudiante
 - Regla especial: el estudiante existe para matrícula/asistencia/auditoría, pero no puede tener cuenta ni autenticarse.
 - Compatibilidad de migración para la cuenta existente cuyo hash de contraseña está en SHA-256: al iniciar sesión correctamente se actualiza a Argon2id.
-- Documentación OpenAPI en `/docs`.
+- Documentación OpenAPI interactiva en `/api/docs` (prefijo predeterminado).
 - Colección de Postman en `postman/AeroPass-NFC.postman_collection.json`.
 
 ## Inicio
@@ -28,7 +28,7 @@ Backend NestJS alineado con la base de datos `control_acceso_nfc` entregada para
 3. Ejecuta `npm install`.
 4. Ejecuta `npm run build`.
 5. Ejecuta `npm run start:dev`.
-6. Abre `http://localhost:3000/docs`.
+6. Abre `http://localhost:3000/api/docs`.
 
 ## Login
 

@@ -1,33 +1,28 @@
 import {
-  Column,
-  Entity,
-  JoinColumn,
-  OneToOne,
-  OneToMany,
-  PrimaryGeneratedColumn,
+  Column, Entity, JoinColumn, OneToOne, OneToMany, PrimaryGeneratedColumn,
 } from 'typeorm';
 
 @Entity('estudiantes')
 export class Estudiante {
   @PrimaryGeneratedColumn({ type: 'bigint', unsigned: true })
-  id: number;
+  id!: number;
 
   @Column({ name: 'persona_id', type: 'bigint', unsigned: true, unique: true })
-  personaId: number;
+  personaId!: number;
 
   @Column({ name: 'codigo_estudiante', type: 'varchar', length: 50, unique: true })
-  codigoEstudiante: string;
+  codigoEstudiante!: string;
 
   @Column({ name: 'fecha_ingreso', type: 'date', nullable: true })
-  fechaIngreso: string | null;
+  fechaIngreso!: Date | null;
 
   @Column({ type: 'enum', enum: ['ACTIVO', 'INACTIVO', 'EGRESADO', 'RETIRADO'], default: 'ACTIVO' })
-  estado: 'ACTIVO' | 'INACTIVO' | 'EGRESADO' | 'RETIRADO';
+  estado!: string;
 
   @OneToOne('Persona', 'estudiante', { onDelete: 'RESTRICT', onUpdate: 'CASCADE' })
   @JoinColumn({ name: 'persona_id' })
-  persona: any;
+  persona!: any;
 
   @OneToMany('MatriculaGrupo', 'estudiante')
-  matriculas: any[];
+  matriculas!: any[];
 }
