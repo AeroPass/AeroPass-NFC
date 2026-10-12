@@ -21,7 +21,7 @@ export class EstudiantesController {
 
   @Get()
   @Roles(Role.ADMIN, Role.DOCENTE)
-  @RequirePermissions('AUTH_LOGIN')
+  @RequirePermissions('ASISTENCIAS_LEER')
   @ApiOperation({ summary: 'Listar estudiantes autorizados' })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })

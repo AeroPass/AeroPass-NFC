@@ -18,7 +18,29 @@ async function bootstrap() {
     .addBearerAuth()
     .build();
   const document = SwaggerModule.createDocument(app, swaggerConfig);
-  SwaggerModule.setup(`${apiPrefix}/docs`, app, document);
+  const swaggerDarkCss = `
+    html, body, .swagger-ui { background: #0b1220 !important; color: #e5e7eb !important; }
+    .swagger-ui .topbar { background-color: #111827 !important; }
+    .swagger-ui .info, .swagger-ui .info .title, .swagger-ui .info p,
+    .swagger-ui .info li, .swagger-ui .opblock-tag, .swagger-ui label,
+    .swagger-ui .parameter__name, .swagger-ui .parameter__type,
+    .swagger-ui table thead tr th, .swagger-ui table tbody tr td,
+    .swagger-ui .model-title, .swagger-ui section h3, .swagger-ui h4 { color: #e5e7eb !important; }
+    .swagger-ui .scheme-container, .swagger-ui .opblock, .swagger-ui .model-box,
+    .swagger-ui section.models, .swagger-ui .responses-inner, .swagger-ui .opblock-body,
+    .swagger-ui .opblock-description-wrapper, .swagger-ui .opblock-external-docs-wrapper,
+    .swagger-ui .opblock-title_normal, .swagger-ui .auth-wrapper { background: #111827 !important; }
+    .swagger-ui input, .swagger-ui textarea, .swagger-ui select,
+    .swagger-ui .dialog-ux .modal-ux { background: #1f2937 !important; color: #f9fafb !important; border-color: #374151 !important; }
+    .swagger-ui .btn { color: #f9fafb !important; border-color: #64748b !important; }
+    .swagger-ui .opblock .opblock-section-header { background: #1f2937 !important; }
+    .swagger-ui .model-toggle:after, .swagger-ui .expand-operation:after { filter: invert(1); }
+    .swagger-ui a { color: #93c5fd !important; }
+  `;
+  SwaggerModule.setup(`${apiPrefix}/docs`, app, document, {
+    customSiteTitle: 'AeroPass NFC API · Swagger',
+    customCss: swaggerDarkCss,
+  });
 
   await app.listen(Number(process.env.PORT || 3000));
 }

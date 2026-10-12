@@ -2,6 +2,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
@@ -59,5 +60,8 @@ export class Tarjeta {
     type: 'timestamp',
   })
   updatedAt!: Date;
+
+  @OneToMany('AsignacionTarjeta', 'tarjeta')
+  asignaciones!: any[];
 }
 

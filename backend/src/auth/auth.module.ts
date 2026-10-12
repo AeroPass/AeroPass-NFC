@@ -19,10 +19,19 @@ import { JwtStrategy } from './jwt.strategy';
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        secret: config.getOrThrow<string>('JWT_SECRET'),
-        signOptions: { expiresIn: config.get<string>('JWT_EXPIRES_IN', '8h') as any },
-      }),
+      useFactory: (config: ConfigService) => {
+        const secret = config.get<string>('JWT_SECRET');
+        if (!secret || secret.length < 32 || secret.startsWith('REEMPLAZAR_')) {
+          throw new Error('JWT_SECRET debe existir y tener al menos 32 caracteres. Genere un secreto aleatorio antes de iniciar la API.');
+        }
+        return {
+          secret,
+          signOptions: {
+            expiresIn: config.get<string>('JWT_EXPIRES_IN', '8h') as any,
+            algorithm: 'HS256' as const,
+          },
+        };
+      },
     }),
   ],
   controllers: [AuthController],

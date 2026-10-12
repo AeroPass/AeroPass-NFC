@@ -1,4 +1,5 @@
 import { Injectable, UnauthorizedException, ConflictException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -17,6 +18,7 @@ export class AuthService {
     @InjectRepository(RolPermiso) private readonly rolPermisoRepo: Repository<RolPermiso>,
     private readonly jwt: JwtService,
     private readonly audit: AuditService,
+    private readonly config: ConfigService,
   ) {}
 
   async login(dto: LoginDto, requestMeta?: { ip?: string; userAgent?: string }) {
@@ -103,7 +105,7 @@ export class AuthService {
       accessToken,
       token: accessToken,
       tokenType: 'Bearer',
-      expiresIn: '8h',
+      expiresIn: this.config.get<string>('JWT_EXPIRES_IN', '8h'),
       user: {
         id: Number(usuario.id),
         username: usuario.username,

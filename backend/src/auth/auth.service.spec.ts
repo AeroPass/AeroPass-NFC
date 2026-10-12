@@ -1,4 +1,5 @@
 import { Test } from '@nestjs/testing';
+import { ConfigService } from '@nestjs/config';
 import { UnauthorizedException, ConflictException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { getRepositoryToken } from '@nestjs/typeorm';
@@ -15,7 +16,7 @@ describe('AuthService', () => {
     const repo = { createQueryBuilder: () => ({ addSelect() { return this; }, leftJoinAndSelect() { return this; }, where() { return this; }, getOne: async () => usuario }), update: jest.fn() };
     const rpRepo = { find: jest.fn().mockResolvedValue([]) };
     const audit = { log: jest.fn().mockResolvedValue(undefined) };
-    const module = await Test.createTestingModule({ providers: [AuthService, { provide: getRepositoryToken(Usuario), useValue: repo }, { provide: getRepositoryToken(RolPermiso), useValue: rpRepo }, { provide: JwtService, useValue: { signAsync: jest.fn() } }, { provide: AuditService, useValue: audit }] }).compile();
+    const module = await Test.createTestingModule({ providers: [AuthService, { provide: getRepositoryToken(Usuario), useValue: repo }, { provide: getRepositoryToken(RolPermiso), useValue: rpRepo }, { provide: JwtService, useValue: { signAsync: jest.fn() } }, { provide: ConfigService, useValue: { get: jest.fn().mockReturnValue('8h') } }, { provide: AuditService, useValue: audit }] }).compile();
     const service = module.get(AuthService);
     await expect(service.login({ username: 'estudiante7', password: 'Password123' })).rejects.toThrow(UnauthorizedException);
   });
@@ -23,7 +24,7 @@ describe('AuthService', () => {
   it('rechaza una cuenta bloqueada', async () => {
     const usuario: any = { id: 7, username: 'bloqueado', passwordHash: await argon2.hash('Password123'), estado: 'BLOQUEADO', persona: { id: 8, estado: 'ACTIVA' }, rol: { id: 1, codigo: 'ADMIN', nombre: 'Administrador', estado: 'ACTIVO' }, rolId: 1 };
     const repo = { createQueryBuilder: () => ({ addSelect() { return this; }, leftJoinAndSelect() { return this; }, where() { return this; }, getOne: async () => usuario }) };
-    const module = await Test.createTestingModule({ providers: [AuthService, { provide: getRepositoryToken(Usuario), useValue: repo }, { provide: getRepositoryToken(RolPermiso), useValue: { find: jest.fn() } }, { provide: JwtService, useValue: { signAsync: jest.fn() } }, { provide: AuditService, useValue: { log: jest.fn() } }] }).compile();
+    const module = await Test.createTestingModule({ providers: [AuthService, { provide: getRepositoryToken(Usuario), useValue: repo }, { provide: getRepositoryToken(RolPermiso), useValue: { find: jest.fn() } }, { provide: JwtService, useValue: { signAsync: jest.fn() } }, { provide: ConfigService, useValue: { get: jest.fn().mockReturnValue('8h') } }, { provide: AuditService, useValue: { log: jest.fn() } }] }).compile();
     await expect(module.get(AuthService).login({ username: 'bloqueado', password: 'Password123' })).rejects.toThrow(ConflictException);
   });
 });

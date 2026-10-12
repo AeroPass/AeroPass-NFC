@@ -21,10 +21,15 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     @InjectRepository(RolPermiso) private readonly rolPermisoRepo: Repository<RolPermiso>,
     config: ConfigService,
   ) {
+    const secret = config.get<string>('JWT_SECRET');
+    if (!secret || secret.length < 32 || secret.startsWith('REEMPLAZAR_')) {
+      throw new Error('JWT_SECRET debe existir y tener al menos 32 caracteres.');
+    }
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: config.getOrThrow<string>('JWT_SECRET'),
+      algorithms: ['HS256'],
+      secretOrKey: secret,
     });
   }
 
