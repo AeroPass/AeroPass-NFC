@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, SelectQueryBuilder } from 'typeorm';
 import { Asistencia } from '../attendance/entities/asistencia.entity';
-import { AttendanceReportQueryDto } from './dto/attendance-report-query.dto';
+import { ConsultaReporteAsistenciaDto } from './dto/consulta-reporte-asistencia.dto';
 
 export interface ReporteAsistencia {
   asistencia_id: number;
@@ -27,18 +27,18 @@ export interface ReporteAsistencia {
 }
 
 @Injectable()
-export class ReportsService {
+export class ReportesService {
   constructor(
     @InjectRepository(Asistencia)
     private readonly asistencias: Repository<Asistencia>,
   ) {}
 
-  async detail(query: AttendanceReportQueryDto) {
+  async consultarDetalle(query: ConsultaReporteAsistenciaDto) {
     const builder = this.baseQuery();
     this.applyFilters(builder, query);
     const total = await builder
       .clone()
-      .select('COUNT(DISTINCT asistencia.id)', 'total')
+      .select('COUNT(asistencia.id)', 'total')
       .getRawOne<{ total: string }>();
     const registros = await builder
       .orderBy('asistencia.fecha_clase', 'DESC')
@@ -54,9 +54,9 @@ export class ReportsService {
     };
   }
 
-  async summary(query: AttendanceReportQueryDto) {
+  async obtenerResumen(query: ConsultaReporteAsistenciaDto) {
     const builder = this.baseQuery()
-      .select('COUNT(DISTINCT asistencia.id)', 'total')
+      .select('COUNT(asistencia.id)', 'total')
       .addSelect("SUM(asistencia.resultado = 'ASISTENCIA')", 'asistencias')
       .addSelect("SUM(asistencia.resultado = 'TARDANZA')", 'tardanzas')
       .addSelect("SUM(asistencia.resultado = 'JUSTIFICADA')", 'justificadas')
@@ -75,6 +75,17 @@ export class ReportsService {
         ? Number(((asistencias / total) * 100).toFixed(2))
         : 0,
     };
+  }
+
+  async obtenerRegistrosParaExportar(query: ConsultaReporteAsistenciaDto) {
+    const builder = this.baseQuery();
+    this.applyFilters(builder, query);
+    return builder
+      .orderBy('asistencia.fecha_clase', 'DESC')
+      .addOrderBy('asistencia.hora_registro', 'DESC')
+      .offset((query.pagina - 1) * query.limite)
+      .limit(query.limite)
+      .getRawMany<ReporteAsistencia>();
   }
 
   private baseQuery() {
@@ -132,7 +143,7 @@ export class ReportsService {
 
   private applyFilters(
     builder: SelectQueryBuilder<Asistencia>,
-    query: AttendanceReportQueryDto,
+    query: ConsultaReporteAsistenciaDto,
   ) {
     if (query.desde)
       builder.andWhere('asistencia.fecha_clase >= :desde', {

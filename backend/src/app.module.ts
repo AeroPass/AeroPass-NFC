@@ -4,13 +4,14 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { APP_GUARD } from '@nestjs/core';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import configuracion from './config/configuration';
 import { AuthModule } from './auth/auth.module';
 import { UsuariosModule } from './usuarios/usuarios.module';
 import { EstudiantesModule } from './estudiantes/estudiantes.module';
 import { RolesModule } from './roles/roles.module';
 import { PermisosModule } from './permisos/permisos.module';
 import { AttendanceModule } from './attendance/attendance.module';
-import { ReportsModule } from './reports/reports.module';
+import { ReportesModule } from './reportes/reportes.module';
 import { TarjetasModule } from './tarjetas/tarjetas.module';
 import { GestionAcademicaModule } from './gestion-academica/gestion-academica.module';
 import { AuditoriaModule } from './auditoria/auditoria.module';
@@ -18,42 +19,22 @@ import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { PermissionsGuard } from './auth/permissions.guard';
 import { EventEmitterModule } from '@nestjs/event-emitter';
-import { AsignacionTarjeta } from './tarjetas/entities/asignacion-tarjeta.entity';
-import { Auditoria } from './auditoria/entities/auditoria.entity';
-import { Asistencia } from './attendance/entities/asistencia.entity';
-import { Tarjeta } from './tarjetas/entities/tarjeta.entity';
-import { Usuario } from './usuarios/entities/usuario.entity';
-import { Persona } from './usuarios/entities/persona.entity';
-import { TiposDocumento } from './usuarios/entities/tipos-documento.entity';
-import { Rol } from './roles/entities/rol.entity';
-import { RolPermiso } from './roles/entities/rol-permiso.entity';
-import { Permiso } from './permisos/entities/permiso.entity';
-import { Estudiante } from './estudiantes/entities/estudiante.entity';
-import { Docente } from './gestion-academica/entities/docente.entity';
-import { Carrera } from './gestion-academica/entities/carrera.entity';
-import { Materia } from './gestion-academica/entities/materia.entity';
-import { Periodo } from './gestion-academica/entities/periodo.entity';
-import { Semestre } from './gestion-academica/entities/semestre.entity';
-import { Grupo } from './gestion-academica/entities/grupo.entity';
-import { AsignacionDocente } from './gestion-academica/entities/asignacion-docente.entity';
-import { MatriculaGrupo } from './gestion-academica/entities/matricula-grupo.entity';
-import { Salon } from './gestion-academica/entities/salon.entity';
-import { Horario } from './gestion-academica/entities/horario.entity';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    ConfigModule.forRoot({ isGlobal: true, load: [configuracion] }),
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
         type: 'mysql',
-        host: config.get<string>('DB_HOST', '127.0.0.1'),
-        port: Number(config.get<string>('DB_PORT', '3306')),
-        username: config.get<string>('DB_USERNAME', 'root'),
-        password: config.get<string>('DB_PASSWORD', ''),
-        database: config.get<string>('DB_DATABASE', 'control_acceso_nfc'),
-        entities: [Auditoria, Asistencia, Tarjeta, AsignacionTarjeta, Usuario, Persona, TiposDocumento, Rol, RolPermiso, Permiso, Estudiante, Docente, Carrera, Materia, Periodo, Semestre, Grupo, AsignacionDocente, MatriculaGrupo, Salon, Horario],
-        synchronize: false,
+        host: config.getOrThrow<string>('baseDatos.host'),
+        port: config.getOrThrow<number>('baseDatos.puerto'),
+        username: config.getOrThrow<string>('baseDatos.usuario'),
+        password: config.getOrThrow<string>('baseDatos.contrasena'),
+        database: config.getOrThrow<string>('baseDatos.nombre'),
+        autoLoadEntities: true,
+        synchronize: config.getOrThrow<boolean>('baseDatos.sincronizar'),
+        logging: config.getOrThrow<boolean>('baseDatos.registrarConsultas'),
       }),
     }),
     TypeOrmModule.forRootAsync({
@@ -61,18 +42,19 @@ import { Horario } from './gestion-academica/entities/horario.entity';
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
         type: 'mysql',
-        host: config.get<string>('SIGEDIN_DB_HOST', '127.0.0.1'),
-        port: Number(config.get<string>('SIGEDIN_DB_PORT', '3306')),
-        username: config.get<string>('SIGEDIN_DB_USERNAME', 'root'),
-        password: config.get<string>('SIGEDIN_DB_PASSWORD', ''),
-        database: config.get<string>('SIGEDIN_DB_DATABASE', 'sigedin'),
+        host: config.getOrThrow<string>('baseDatosAcademica.host'),
+        port: config.getOrThrow<number>('baseDatosAcademica.puerto'),
+        username: config.getOrThrow<string>('baseDatosAcademica.usuario'),
+        password: config.getOrThrow<string>('baseDatosAcademica.contrasena'),
+        database: config.getOrThrow<string>('baseDatosAcademica.nombre'),
         entities: [],
-        synchronize: false,
+        synchronize: config.getOrThrow<boolean>('baseDatosAcademica.sincronizar'),
+        logging: config.getOrThrow<boolean>('baseDatosAcademica.registrarConsultas'),
       }),
     }),
     EventEmitterModule.forRoot(),
     AuthModule, UsuariosModule, EstudiantesModule, RolesModule, PermisosModule,
-    AttendanceModule, ReportsModule, TarjetasModule, GestionAcademicaModule, AuditoriaModule,
+    AttendanceModule, ReportesModule, TarjetasModule, GestionAcademicaModule, AuditoriaModule,
   ],
   controllers: [AppController],
   providers: [

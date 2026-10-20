@@ -105,7 +105,7 @@ export class AuthService {
       accessToken,
       token: accessToken,
       tokenType: 'Bearer',
-      expiresIn: this.config.get<string>('JWT_EXPIRES_IN', '8h'),
+      expiresIn: this.config.getOrThrow<string>('jwt.expiracion'),
       user: {
         id: Number(usuario.id),
         username: usuario.username,
