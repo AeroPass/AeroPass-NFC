@@ -17,7 +17,7 @@ const resultadosAsistencia = [
 ] as const;
 const formatosReporte = ['csv', 'pdf'] as const;
 
-export class AttendanceReportQueryDto {
+export class ConsultaReporteAsistenciaDto {
   @ApiPropertyOptional({ description: 'Formato de archivo para la exportación', enum: ['csv', 'pdf'], default: 'csv' })
   @IsOptional()
   @IsEnum(formatosReporte)

@@ -1,9 +1,11 @@
 import {
   ConflictException,
+  HttpException,
+  HttpStatus,
   Injectable,
   NotFoundException,
-  TooManyRequestsException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { EventEmitter2 } from '@nestjs/event-emitter';
@@ -28,6 +30,7 @@ export class AttendanceService {
     private readonly asistencias: Repository<Asistencia>,
     private readonly dataSource: DataSource,
     private readonly events: EventEmitter2,
+    private readonly configuracion: ConfigService,
   ) {}
 
   async crear(dto: CrearAsistenciaDto) {
@@ -90,10 +93,9 @@ export class AttendanceService {
     const fecha = fechaHora.slice(0, 10);
     const hora = fechaHora.slice(11, 19);
     const weekday = this.diaSemanaIso(fecha);
-    const configuredCooldown = Number(process.env.NFC_TAP_COOLDOWN_SECONDS || 5);
-    const cooldownSeconds = Number.isFinite(configuredCooldown)
-      ? Math.max(1, Math.floor(configuredCooldown))
-      : 5;
+    const cooldownSeconds = this.configuracion.getOrThrow<number>(
+      'asistencia.intervaloTapSegundos',
+    );
     const fechaLimiteReciente = this.formatearFechaHoraColombia(
       new Date(ahora.getTime() - cooldownSeconds * 1000),
     );
@@ -213,8 +215,9 @@ export class AttendanceService {
           [horario.estudianteId, fechaLimiteReciente],
         );
         if (recientes.length) {
-          throw new TooManyRequestsException(
+          throw new HttpException(
             `Lectura duplicada. Espere al menos ${cooldownSeconds} segundos antes de volver a acercar la tarjeta.`,
+            HttpStatus.TOO_MANY_REQUESTS,
           );
         }
 
@@ -227,10 +230,9 @@ export class AttendanceService {
           throw new ConflictException('La asistencia de este estudiante para el horario de hoy ya fue registrada.');
         }
 
-        const configuredTolerancia = Number(process.env.ATTENDANCE_LATE_GRACE_MINUTES || 10);
-        const toleranciaMinutos = Number.isFinite(configuredTolerancia)
-          ? Math.max(0, Math.floor(configuredTolerancia))
-          : 10;
+        const toleranciaMinutos = this.configuracion.getOrThrow<number>(
+          'asistencia.toleranciaTardanzaMinutos',
+        );
         const resultado: 'ASISTENCIA' | 'TARDANZA' =
           this.minutos(hora) > this.minutos(horario.horaInicio) + toleranciaMinutos
             ? 'TARDANZA'
@@ -289,7 +291,7 @@ export class AttendanceService {
 
   private formatearFechaHoraColombia(date: Date): string {
     const values = new Intl.DateTimeFormat('en-CA', {
-      timeZone: process.env.ATTENDANCE_TIME_ZONE || 'America/Bogota',
+      timeZone: this.configuracion.getOrThrow<string>('asistencia.zonaHoraria'),
       year: 'numeric', month: '2-digit', day: '2-digit',
       hour: '2-digit', minute: '2-digit', second: '2-digit',
       hourCycle: 'h23',

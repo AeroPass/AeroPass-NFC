@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { JwtModule } from '@nestjs/jwt';
+import { JwtModule, JwtSignOptions } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Usuario } from '../usuarios/entities/usuario.entity';
@@ -20,15 +20,13 @@ import { JwtStrategy } from './jwt.strategy';
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (config: ConfigService) => {
-        const secret = config.get<string>('JWT_SECRET');
-        if (!secret || secret.length < 32 || secret.startsWith('REEMPLAZAR_')) {
-          throw new Error('JWT_SECRET debe existir y tener al menos 32 caracteres. Genere un secreto aleatorio antes de iniciar la API.');
-        }
         return {
-          secret,
+          secret: config.getOrThrow<string>('jwt.secreto'),
           signOptions: {
-            expiresIn: config.get<string>('JWT_EXPIRES_IN', '8h') as any,
+            expiresIn: config.getOrThrow<JwtSignOptions['expiresIn']>('jwt.expiracion'),
             algorithm: 'HS256' as const,
+            issuer: config.getOrThrow<string>('jwt.emisor'),
+            audience: config.getOrThrow<string>('jwt.audiencia'),
           },
         };
       },

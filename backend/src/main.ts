@@ -1,13 +1,16 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AllExceptionsFilter } from './common/all-exceptions.filter';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  const apiPrefix = process.env.API_PREFIX || 'api';
-  app.setGlobalPrefix(apiPrefix);
+  const configuracion = app.get(ConfigService);
+  const prefijoApi = configuracion.getOrThrow<string>('aplicacion.prefijoApi');
+  const puerto = configuracion.getOrThrow<number>('aplicacion.puerto');
+  app.setGlobalPrefix(prefijoApi);
   app.useGlobalPipes(new ValidationPipe({ transform: true, whitelist: true, forbidNonWhitelisted: true }));
   app.useGlobalFilters(new AllExceptionsFilter());
 
@@ -37,12 +40,12 @@ async function bootstrap() {
     .swagger-ui .model-toggle:after, .swagger-ui .expand-operation:after { filter: invert(1); }
     .swagger-ui a { color: #93c5fd !important; }
   `;
-  SwaggerModule.setup(`${apiPrefix}/docs`, app, document, {
+  SwaggerModule.setup(`${prefijoApi}/docs`, app, document, {
     customSiteTitle: 'AeroPass NFC API · Swagger',
     customCss: swaggerDarkCss,
   });
 
-  await app.listen(Number(process.env.PORT || 3000));
+  await app.listen(puerto);
 }
 
 void bootstrap();

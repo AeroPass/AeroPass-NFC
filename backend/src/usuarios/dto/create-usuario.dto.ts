@@ -48,9 +48,9 @@ export class CreateUsuarioDto {
   @MaxLength(80)
   username!: string;
 
-  @ApiProperty({ example: 'doc123', description: 'Contraseña (mínimo 6 caracteres)' })
+  @ApiProperty({ example: 'doc12345', description: 'Contraseña (mínimo 8 caracteres)' })
   @IsString()
-  @MinLength(6)
+  @MinLength(8)
   password!: string;
 
   @ApiProperty({ example: 2, description: 'ID del rol a asignar' })
