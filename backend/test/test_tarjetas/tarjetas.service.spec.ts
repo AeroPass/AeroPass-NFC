@@ -52,6 +52,14 @@ describe('TarjetasService - pruebas unitarias', () => {
     expect(repositorio.save).not.toHaveBeenCalled();
   });
 
+  it('rechaza un UID duplicado si la base de datos lo detecta al guardar', async () => {
+    repositorio.save.mockRejectedValue({ code: 'ER_DUP_ENTRY' });
+
+    await expect(service.crear({ uid: '04A1B2C3' })).rejects.toBeInstanceOf(
+      ConflictException,
+    );
+  });
+
   it('informa que no existe una tarjeta buscada por un UID no registrado', async () => {
     await expect(service.obtenerPorUid('FFFFFFFF')).rejects.toBeInstanceOf(
       NotFoundException,
