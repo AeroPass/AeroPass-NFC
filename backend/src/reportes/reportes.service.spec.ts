@@ -3,6 +3,7 @@ import { PATH_METADATA, METHOD_METADATA } from '@nestjs/common/constants';
 import { RequestMethod } from '@nestjs/common';
 import { Repository, SelectQueryBuilder } from 'typeorm';
 import { Asistencia } from '../attendance/entities/asistencia.entity';
+import { ConsultaReporteAsistenciaDto } from './dto/consulta-reporte-asistencia.dto';
 import { ReportesController } from './reportes.controller';
 import { ReportesService } from './reportes.service';
 
@@ -59,6 +60,36 @@ describe('Reportes de asistencia', () => {
         RequestMethod.GET,
       );
     }
+  });
+
+  it('consulta el detalle con filtros y devuelve los metadatos de paginación', async () => {
+    const { servicio, consulta } = crearServicio();
+    const registros = [{ asistencia_id: 17 }];
+    const query: ConsultaReporteAsistenciaDto = {
+      desde: '2026-10-01',
+      hasta: '2026-10-31',
+      asignacionDocenteId: 3,
+      docenteId: 4,
+      materiaId: 5,
+      grupoId: 6,
+      estudianteId: 7,
+      resultado: 'ASISTENCIA',
+      pagina: 2,
+      limite: 10,
+    };
+    jest.spyOn(consulta, 'getRawOne').mockResolvedValue({ total: '23' } as never);
+    jest.spyOn(consulta, 'getRawMany').mockResolvedValue(registros as never);
+
+    await expect(servicio.consultarDetalle(query)).resolves.toEqual({
+      registros,
+      total: 23,
+      pagina: 2,
+      limite: 10,
+    });
+
+    expect(consulta.andWhere).toHaveBeenCalledTimes(8);
+    expect(consulta.offset).toHaveBeenCalledWith(10);
+    expect(consulta.limit).toHaveBeenCalledWith(10);
   });
 
   it('exporta los registros con una consulta, sin contar el total', async () => {
