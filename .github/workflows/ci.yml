@@ -23,11 +23,11 @@ jobs:
           cache-dependency-path: backend/package-lock.json
       - name: Instalar dependencias
         run: npm ci
-      - name: Validar tipos (lint)
+      - name: Validar tipos
         run: npm run lint
       - name: Compilar
         run: npm run build
-      - name: Ejecutar todas las pruebas con cobertura
+      - name: Pruebas unitarias, de integración y de reportes (con cobertura)
         run: npm test -- --ci --coverage
       - name: Subir reporte de cobertura
         if: always()
