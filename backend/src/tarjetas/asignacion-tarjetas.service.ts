@@ -41,7 +41,7 @@ export class AsignacionTarjetasService {
       const asignacionRepo = manager.getRepository(AsignacionTarjeta);
 
       const tarjeta = await tarjetaRepo.findOne({
-        where: { id: dto.tarjetaId },
+        where: { id: String(dto.tarjetaId) },
         lock: { mode: 'pessimistic_write' },
       });
       if (!tarjeta) throw new NotFoundException('Tarjeta NFC no encontrada.');
@@ -65,7 +65,7 @@ export class AsignacionTarjetasService {
 
       const asignacionTarjetaActiva = await asignacionRepo.findOne({
         where: {
-          tarjetaId: tarjeta.id,
+          tarjetaId: Number(tarjeta.id),
           fechaFin: IsNull(),
           fechaInicio: LessThanOrEqual(ahora),
         },
@@ -86,7 +86,7 @@ export class AsignacionTarjetasService {
       }
 
       const nueva = asignacionRepo.create({
-        tarjetaId: tarjeta.id,
+        tarjetaId: Number(tarjeta.id),
         personaId: persona.id,
         fechaInicio: ahora,
         fechaFin: null,
@@ -168,7 +168,7 @@ export class AsignacionTarjetasService {
       };
     }
 
-    const tarjeta = await this.tarjetas.findOne({ where: { id: asignacion.tarjetaId } });
+    const tarjeta = await this.tarjetas.findOne({ where: { id: String(asignacion.tarjetaId) } });
     return {
       estudianteId: estudiante.id,
       codigoEstudiante: estudiante.codigoEstudiante,
